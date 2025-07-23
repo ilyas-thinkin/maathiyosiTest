@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+body {
+  background-color: #fefaf6;
+}
+
+@keyframes shine {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shine {
+  animation: shine 3s infinite;
+  background-size: 200% 100%;
+}
