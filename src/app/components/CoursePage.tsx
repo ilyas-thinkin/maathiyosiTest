@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Tabs, Tab } from '@/components/ui/tab'; // Use your own tab component or headlessui if needed
 import { ChevronDown } from 'lucide-react';
 import Image from 'next/image';
 
