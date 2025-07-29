@@ -17,6 +17,7 @@ const UploadCourse = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
+  const [price, setPrice] = useState(""); // ✅ Added price state
   const [topics, setTopics] = useState("");
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([{ title: "", videoFile: null }]);
@@ -50,10 +51,11 @@ const UploadCourse = () => {
       !description ||
       !topics ||
       !category ||
+      !price || // ✅ Added price validation
       !thumbnailFile ||
       lessons.some((l) => !l.title || !l.videoFile)
     ) {
-      alert("Please fill all fields including category and lessons.");
+      alert("Please fill all fields including category, price and lessons.");
       return;
     }
 
@@ -88,6 +90,7 @@ const UploadCourse = () => {
           category,
           topics: topics.split(",").map((t) => t.trim()),
           thumbnail_url: thumbnailUrl,
+          price: Number(price) // ✅ Fixed: use price state instead of form.price
         },
       ]);
 
@@ -167,6 +170,15 @@ const UploadCourse = () => {
         className="w-full border p-2 rounded"
         value={category}
         onChange={(e) => setCategory(e.target.value)}
+      />
+
+      {/* ✅ Added price input field */}
+      <input
+        type="number"
+        placeholder="Price (₹)"
+        className="w-full border p-2 rounded"
+        value={price}
+        onChange={(e) => setPrice(e.target.value)}
       />
 
       <input

@@ -7,10 +7,12 @@ import { CourseFormData, LessonInput } from './course-form.types';
 
 export default function UploadCourseForm() {
   const supabase = createClientComponentClient();
+
   const [form, setForm] = useState<CourseFormData>({
     title: '',
     description: '',
     category: '',
+    price: '', // ✅ added price
     thumbnail: null,
     lessons: [{ title: '', videoFile: null }]
   });
@@ -39,14 +41,17 @@ export default function UploadCourseForm() {
     e.preventDefault();
 
     try {
+      // ✅ Upload thumbnail if provided
       const thumbPath = form.thumbnail ? await uploadThumbnail(form.thumbnail) : null;
 
+      // ✅ Insert course WITH PRICE
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .insert({
           title: form.title,
           description: form.description,
           category: form.category,
+          price: Number(form.price), // ✅ Save as number
           thumbnail_url: thumbPath
         })
         .select()
@@ -54,6 +59,7 @@ export default function UploadCourseForm() {
 
       if (courseError) throw courseError;
 
+      // ✅ Upload lessons
       for (const lesson of form.lessons) {
         if (!lesson.videoFile) continue;
         const videoPath = await uploadVideo(lesson.videoFile);
@@ -72,6 +78,7 @@ export default function UploadCourseForm() {
         title: '',
         description: '',
         category: '',
+        price: '',
         thumbnail: null,
         lessons: [{ title: '', videoFile: null }]
       });
@@ -88,6 +95,7 @@ export default function UploadCourseForm() {
     >
       <h1 className="text-3xl font-bold text-red-600 mb-6 text-center">Upload New Course</h1>
 
+      {/* ✅ Title */}
       <div>
         <label className="block text-gray-700 font-medium mb-1">Course Title</label>
         <input
@@ -99,6 +107,7 @@ export default function UploadCourseForm() {
         />
       </div>
 
+      {/* ✅ Description */}
       <div>
         <label className="block text-gray-700 font-medium mb-1">Description</label>
         <textarea
@@ -110,6 +119,7 @@ export default function UploadCourseForm() {
         />
       </div>
 
+      {/* ✅ Category */}
       <div>
         <label className="block text-gray-700 font-medium mb-1">Category</label>
         <input
@@ -121,6 +131,19 @@ export default function UploadCourseForm() {
         />
       </div>
 
+      {/* ✅ Price */}
+      <div>
+        <label className="block text-gray-700 font-medium mb-1">Price (₹)</label>
+        <input
+          required
+          type="number"
+          value={form.price}
+          onChange={(e) => setForm({ ...form, price: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-red-400 focus:outline-none"
+        />
+      </div>
+
+      {/* ✅ Thumbnail */}
       <div>
         <label className="block text-gray-700 font-medium mb-1">Thumbnail Image</label>
         <input
@@ -133,6 +156,7 @@ export default function UploadCourseForm() {
         />
       </div>
 
+      {/* ✅ Lessons Section */}
       <div className="pt-4">
         <h2 className="text-xl font-semibold text-gray-800 mb-2">Lessons</h2>
 
@@ -178,6 +202,7 @@ export default function UploadCourseForm() {
         </button>
       </div>
 
+      {/* ✅ Submit Button */}
       <button
         type="submit"
         className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-md transition duration-200"
@@ -187,3 +212,4 @@ export default function UploadCourseForm() {
     </form>
   );
 }
+    
