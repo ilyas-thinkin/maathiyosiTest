@@ -23,7 +23,7 @@ export default function StudentLogin() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: "https://maathiyosi-test-hnhp.vercel.app//", // 🔴 change to https://maathiyosi.io/ when live
+        redirectTo: "https://maathiyosi-test-hnhp.vercel.app/", // 🔴 change to https://maathiyosi.io/ when live
       },
     });
 
