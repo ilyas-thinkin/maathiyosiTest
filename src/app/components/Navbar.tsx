@@ -1,70 +1,76 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Menu, X } from 'lucide-react';
-import { createClientComponentClient } from '../components/lib/supabaseClient';
+import { createClientComponentClient } from "@/app/components/lib/supabaseClient";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
-  const [session, setSession] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const supabase = createClientComponentClient();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // ✅ Fetch logged-in user
   useEffect(() => {
-    // ✅ Check if user is logged in on load
-    const getSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
     };
-    getSession();
 
-    // ✅ Listen for login/logout changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+    getUser();
+
+    // ✅ Close dropdown if clicked outside
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
-      authListener.subscription.unsubscribe();
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [supabase]);
 
+  // ✅ Logout function
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setDropdownOpen(false);
+    setUser(null);
+    window.location.href = "/"; // refresh to reset state
   };
 
   return (
     <nav className="bg-[#fff1f1] shadow-md fixed top-0 left-0 w-full z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
+          {/* ✅ Logo */}
           <Link href="/" className="text-2xl font-bold text-[#de5252]">
             Maathiyosi
           </Link>
 
-          {/* Desktop Menu */}
+          {/* ✅ Desktop Menu */}
           <div className="hidden md:flex space-x-6 items-center">
             <NavLink href="/" label="Home" />
             <NavLink href="/courses" label="Courses" />
             <NavLink href="/contact" label="Contact" />
 
-            {/* ✅ Login button or Profile Pic Dropdown */}
-            {!session ? (
+            {!user ? (
               <NavLink href="/student-login" label="Login" />
             ) : (
-              <div className="relative">
-                {/* Profile picture */}
+              <div className="relative" ref={dropdownRef}>
+                {/* ✅ Profile picture */}
                 <img
-                  src={session.user.user_metadata.avatar_url}
+                  src={user.user_metadata?.avatar_url || "/default-avatar.png"}
                   alt="Profile"
-                  className="w-8 h-8 rounded-full cursor-pointer"
+                  className="w-10 h-10 rounded-full cursor-pointer border border-gray-300"
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                 />
 
-                {/* Dropdown Menu */}
+                {/* ✅ Dropdown Menu */}
                 {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-lg border">
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border py-2">
                     <Link
                       href="/account"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -72,11 +78,18 @@ export default function Navbar() {
                     >
                       Account Details
                     </Link>
+                    <Link
+                      href="/my-courses"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      My Courses
+                    </Link>
                     <button
                       onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                     >
-                      Log Out
+                      Logout
                     </button>
                   </div>
                 )}
@@ -84,7 +97,7 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile Menu Icon */}
+          {/* ✅ Mobile Menu Icon */}
           <div className="md:hidden">
             <button onClick={() => setOpen(!open)}>
               {open ? <X size={24} color="#de5252" /> : <Menu size={24} color="#de5252" />}
@@ -93,42 +106,25 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Dropdown */}
+      {/* ✅ Mobile Dropdown Menu */}
       {open && (
         <div className="md:hidden px-4 pb-4 bg-[#fff1f1]">
           <MobileNavLink href="/" label="Home" />
           <MobileNavLink href="/courses" label="Courses" />
           <MobileNavLink href="/contact" label="Contact" />
-
-          {/* ✅ Mobile: show Login OR Profile pic menu */}
-          {!session ? (
+          {!user ? (
             <MobileNavLink href="/student-login" label="Login" />
           ) : (
-            <div className="mt-2">
-              <img
-                src={session.user.user_metadata.avatar_url}
-                alt="Profile"
-                className="w-8 h-8 rounded-full cursor-pointer"
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-              />
-              {dropdownOpen && (
-                <div className="mt-2 w-40 bg-white rounded-md shadow-lg border">
-                  <Link
-                    href="/account"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setDropdownOpen(false)}
-                  >
-                    Account Details
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Log Out
-                  </button>
-                </div>
-              )}
-            </div>
+            <>
+              <MobileNavLink href="/account" label="Account Details" />
+              <MobileNavLink href="/my-courses" label="My Courses" />
+              <button
+                onClick={handleLogout}
+                className="block text-left text-red-600 py-2 w-full"
+              >
+                Logout
+              </button>
+            </>
           )}
         </div>
       )}
