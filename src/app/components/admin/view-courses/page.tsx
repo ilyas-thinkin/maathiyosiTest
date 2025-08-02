@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Course = {
   id: string;
@@ -73,79 +74,101 @@ const ViewCourses = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6 text-center">Uploaded Courses</h1>
+    <div className="max-w-6xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-8 text-center text-red-600">
+        📚 Uploaded Courses
+      </h1>
 
-      {courses.map((course) => (
-        <div
-          key={course.id}
-          className="border rounded-lg shadow p-4 mb-6 bg-white"
-        >
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            <img
-              src={course.thumbnail_url}
-              alt={course.title}
-              className="w-full sm:w-40 h-28 object-cover rounded"
-            />
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold">{course.title}</h2>
-              <p className="text-sm text-gray-500">{course.category}</p>
-              <p className="text-sm mt-1">{course.description}</p>
-              <p className="text-sm mt-1 text-gray-600">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {courses.map((course) => (
+          <motion.div
+            key={course.id}
+            whileHover={{ scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 200 }}
+            className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden"
+          >
+            {/* Thumbnail */}
+            <div className="relative">
+              <img
+                src={course.thumbnail_url}
+                alt={course.title}
+                className="w-full h-44 object-cover"
+              />
+              <span className="absolute top-3 right-3 bg-red-600 text-white text-xs px-2 py-1 rounded-full shadow">
+                {course.category}
+              </span>
+            </div>
+
+            {/* Content */}
+            <div className="p-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {course.title}
+              </h2>
+              <p className="text-gray-600 text-sm mt-1 line-clamp-2">
+                {course.description}
+              </p>
+              <p className="text-sm mt-2 text-gray-700">
                 <strong>Topics:</strong> {course.topics?.join(", ")}
               </p>
+
+              {/* Toggle Lessons Button */}
               <button
                 onClick={() => toggleLessons(course.id)}
-                className="mt-3 text-blue-600 underline text-sm"
+                className="mt-4 w-full py-2 bg-red-600 text-white rounded-xl font-medium shadow hover:bg-red-700 transition-colors"
               >
-                {expandedCourseId === course.id
-                  ? "Hide Lessons"
-                  : "View Lessons"}
+                {expandedCourseId === course.id ? "Hide Lessons" : "View Lessons"}
               </button>
             </div>
-          </div>
 
-          {expandedCourseId === course.id && (
-            <div className="mt-4 border-t pt-4">
-              {loadingLessons === course.id ? (
-                <p>Loading lessons...</p>
-              ) : (
-                <>
-                  {lessonsMap[course.id]?.length > 0 ? (
+            {/* Lessons Section with animation */}
+            <AnimatePresence>
+              {expandedCourseId === course.id && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className="bg-gray-50 border-t p-4"
+                >
+                  {loadingLessons === course.id ? (
+                    <p className="text-gray-500 text-sm">⏳ Loading lessons...</p>
+                  ) : lessonsMap[course.id]?.length > 0 ? (
                     lessonsMap[course.id].map((lesson, idx) => (
-                      <div
+                      <motion.div
                         key={lesson.id}
-                        className="mb-3 border p-3 rounded bg-gray-50"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="mb-3 border p-3 rounded-xl bg-white shadow-sm"
                       >
-                        <h3 className="font-medium">
-                          Lesson {idx + 1}: {lesson.title}
+                        <h3 className="font-medium text-gray-900">
+                          🎥 Lesson {idx + 1}: {lesson.title}
                         </h3>
-                        <p className="text-sm text-gray-600">
-                          {lesson.description || "No description"}
+                        <p className="text-sm text-gray-600 mt-1">
+                          {lesson.description || "No description provided"}
                         </p>
-                        <p className="text-sm text-gray-500 mb-1">
-                          Duration: {lesson.duration || "N/A"}
+                        <p className="text-xs text-gray-500 mt-1">
+                          ⏱ Duration: {lesson.duration || "N/A"}
                         </p>
+
                         <video
                           src={lesson.video_url}
                           controls
                           controlsList="nodownload"
-                          className="w-full rounded mt-2"
+                          className="w-full rounded-lg mt-3"
                           onContextMenu={(e) => e.preventDefault()}
-                        >
-                          Your browser does not support the video tag.
-                        </video>
-                      </div>
+                        />
+                      </motion.div>
                     ))
                   ) : (
-                    <p className="text-sm text-gray-500">No lessons found.</p>
+                    <p className="text-gray-500 text-sm">🚫 No lessons found.</p>
                   )}
-                </>
+                </motion.div>
               )}
-            </div>
-          )}
-        </div>
-      ))}
+            </AnimatePresence>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 };
