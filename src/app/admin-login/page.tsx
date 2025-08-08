@@ -15,7 +15,7 @@ const Login = () => {
       alert('Login failed: ' + error.message);
     } else {
       alert('Logged in successfully');
-      router.push('components/admin/upload-course'); // or wherever your admin dashboard is
+      router.push('/admin-courses'); // or wherever your admin dashboard is
     }
   };
 

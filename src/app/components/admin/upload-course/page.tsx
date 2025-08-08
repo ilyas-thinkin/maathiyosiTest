@@ -46,98 +46,92 @@ const UploadCourse = () => {
   }, [loading]);
 
   const handleUpload = async () => {
-    if (
-      !title ||
-      !description ||
-      !topics ||
-      !category ||
-      !price || // ✅ Added price validation
-      !thumbnailFile ||
-      lessons.some((l) => !l.title || !l.videoFile)
-    ) {
-      alert("Please fill all fields including category, price and lessons.");
-      return;
-    }
+  if (
+    !title ||
+    !description ||
+    !topics ||
+    !category ||
+    !price ||
+    !thumbnailFile ||
+    lessons.some((l) => !l.title || !l.videoFile)
+  ) {
+    alert("Please fill all fields including category, price and lessons.");
+    return;
+  }
 
-    setLoading(true);
-    const courseId = uuidv4();
-    const timestamp = new Date().toISOString();
+  setLoading(true);
+  const courseId = uuidv4();
+  const timestamp = new Date().toISOString();
 
-    try {
-      // Upload thumbnail
-      const thumbPath = `thumbnails/${courseId}-${thumbnailFile.name}`;
-      const { error: thumbError } = await supabase.storage
+  try {
+    // Upload thumbnail
+    const thumbPath = `thumbnails/${courseId}-${thumbnailFile.name}`;
+    const { error: thumbError } = await supabase.storage
+      .from("course-videos")
+      .upload(thumbPath, thumbnailFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (thumbError) throw new Error("Thumbnail upload failed: " + thumbError.message);
+
+    const { data: thumbUrlData } = supabase.storage
+      .from("course-videos")
+      .getPublicUrl(thumbPath);
+    const thumbnailUrl = thumbUrlData.publicUrl;
+
+    // Insert course
+    const { error: courseError } = await supabase.from("courses").insert([
+      {
+        id: courseId,
+        created_at: timestamp,
+        title,
+        description,
+        category,
+        topics: topics.split(",").map((t) => t.trim()),
+        thumbnail_url: thumbnailUrl,
+        price: Number(price),
+      },
+    ]);
+
+    if (courseError) throw new Error("Course insert failed: " + courseError.message);
+
+    // Upload lessons
+    for (const [i, lesson] of lessons.entries()) {
+      const videoPath = `videos/${courseId}/lesson-${i + 1}-${uuidv4()}-${lesson.videoFile?.name}`;
+
+      const { error: videoError } = await supabase.storage
         .from("course-videos")
-        .upload(thumbPath, thumbnailFile, {
-          cacheControl: "3600",
+        .upload(videoPath, lesson.videoFile!, {
           upsert: false,
         });
 
-      if (thumbError) throw new Error("Thumbnail upload failed: " + thumbError.message);
+      if (videoError) throw new Error(`Lesson ${i + 1} video upload failed: ${videoError.message}`);
 
-      const { data: thumbUrlData } = supabase.storage
-        .from("course-videos")
-        .getPublicUrl(thumbPath);
-      const thumbnailUrl = thumbUrlData.publicUrl;
-
-      // Insert course
-      const { error: courseError } = await supabase.from("courses").insert([
+      // ✅ Store only the file path, not signed URL
+      const { error: lessonError } = await supabase.from("course_lessons").insert([
         {
-          id: courseId,
-          created_at: timestamp,
-          title,
-          description,
-          category,
-          topics: topics.split(",").map((t) => t.trim()),
-          thumbnail_url: thumbnailUrl,
-          price: Number(price) // ✅ Fixed: use price state instead of form.price
+          course_id: courseId,
+          title: lesson.title,
+          video_url: videoPath, // ✅ just the path
+          description: lesson.description || "",
+          duration: lesson.duration || "",
         },
       ]);
 
-      if (courseError) throw new Error("Course insert failed: " + courseError.message);
-
-      // Upload lessons
-      for (const [i, lesson] of lessons.entries()) {
-        const videoPath = `videos/${courseId}/lesson-${i + 1}-${uuidv4()}-${lesson.videoFile?.name}`;
-        const { error: videoError } = await supabase.storage
-          .from("course-videos")
-          .upload(videoPath, lesson.videoFile!, {
-            upsert: false,
-          });
-
-        if (videoError) throw new Error(`Lesson ${i + 1} video upload failed: ${videoError.message}`);
-
-        // Generate signed (non-downloadable) URL
-        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-          .from("course-videos")
-          .createSignedUrl(videoPath, 60 * 60); // 1 hour expiry
-
-        if (signedUrlError) throw new Error("Failed to generate signed URL");
-
-        const videoUrl = signedUrlData.signedUrl;
-
-        const { error: lessonError } = await supabase.from("course_lessons").insert([
-          {
-            course_id: courseId,
-            title: lesson.title,
-            video_url: videoUrl,
-            description: lesson.description || "",
-            duration: lesson.duration || "",
-          },
-        ]);
-
-        if (lessonError) throw new Error(`Lesson ${i + 1} DB insert failed: ${lessonError.message}`);
-      }
-
-      alert("✅ Course uploaded successfully!");
-      router.push("/admin/dashboard");
-    } catch (err: any) {
-      console.error(err);
-      alert("❌ Upload failed: " + err.message);
-    } finally {
-      setLoading(false);
+      if (lessonError) throw new Error(`Lesson ${i + 1} DB insert failed: ${lessonError.message}`);
     }
-  };
+
+    alert("✅ Course uploaded successfully!");
+    router.push("/admin/dashboard");
+  } catch (err: any) {
+    console.error(err);
+    alert("❌ Upload failed: " + err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6 relative">
