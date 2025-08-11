@@ -1,13 +1,16 @@
 import Navbar from './components/Navbar';
 import Hero from './components/HeroSection';
-import CourseSection from './components/CourseSection';
+import HomePageCourse from './components/HomePageCourses';
+import StudentTestimonials from './components/StudentTestimonials';
+
 
 export default function Home() {
   return (
     <>
       <Navbar />
       <Hero />
-      <CourseSection />
+      <HomePageCourse />
+      <StudentTestimonials />
       
     </>
   );
