@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   /* config options here */
 
   images: {
-    domains: ['source.unsplash.com'],
+    domains: ['source.unsplash.com','randomuser.me'],
   },
   eslint: {
     ignoreDuringBuilds: true,
