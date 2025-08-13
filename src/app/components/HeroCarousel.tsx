@@ -236,23 +236,31 @@ export default function HeroCarousel() {
       {/* Navigation Arrows */}
       {slides.length > 1 && (
         <>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={prevSlide}
-            className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 bg-white/90 backdrop-blur-sm text-gray-700 rounded-full p-2 md:p-3 shadow-lg hover:bg-white hover:shadow-xl transition-all duration-200 border border-gray-200 z-20"
-          >
-            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
-          </motion.button>
+          {/* LEFT ARROW */}
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={prevSlide}
+              className="absolute left-2 top-1/2 -translate-x-1 -translate-y-1/2
+                        bg-white/90 backdrop-blur-sm text-gray-700 rounded-full
+                        p-2 md:p-3 shadow-lg hover:bg-white hover:shadow-xl
+                        transition-all duration-200 border border-gray-200 z-20"
+            >
+              <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+            </motion.button>
 
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={nextSlide}
-            className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 bg-white/90 backdrop-blur-sm text-gray-700 rounded-full p-2 md:p-3 shadow-lg hover:bg-white hover:shadow-xl transition-all duration-200 border border-gray-200 z-20"
-          >
-            <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
-          </motion.button>
+            {/* RIGHT ARROW */}
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={nextSlide}
+              className="absolute right-2 top-1/2 translate-x-1 -translate-y-1/2
+                        bg-white/90 backdrop-blur-sm text-gray-700 rounded-full
+                        p-2 md:p-3 shadow-lg hover:bg-white hover:shadow-xl
+                        transition-all duration-200 border border-gray-200 z-20"
+            >
+              <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
+            </motion.button>
         </>
       )}
 
