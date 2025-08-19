@@ -48,7 +48,7 @@ export default function Navbar() {
               <span className="text-white font-bold text-sm">M</span>
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent">
-              Maathiyosi
+              Maathiyosi.io
             </span>
           </Link>
 
