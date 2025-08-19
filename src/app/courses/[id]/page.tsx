@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../components/lib/supabaseClient";
-import { createClientComponentClient } from "../../components/lib/supabaseClient";
 import { motion } from "framer-motion";
+import { useSession, signIn } from "next-auth/react";
 
 type Course = {
   id: string;
@@ -16,12 +16,16 @@ type Course = {
   topics: string[];
   created_at: string;
   price: number;
+  source: "normal" | "yt";
+  yt_url?: string;
 };
 
 export default function CourseDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const supabaseAuth = createClientComponentClient();
+
+  const { data: session } = useSession();
 
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,37 +33,50 @@ export default function CourseDetailPage() {
   const [alreadyPurchased, setAlreadyPurchased] = useState(false);
   const [buttonLoading, setButtonLoading] = useState(false);
 
-  // ✅ Fetch course details
+  const source = (searchParams.get("source") as "normal" | "yt") || "normal";
+
+  // ✅ Fetch course details and check purchase
   useEffect(() => {
     const fetchCourse = async () => {
       try {
+        const table = source === "yt" ? "courses_yt" : "courses";
+
+        // Fetch course
         const { data, error } = await supabase
-          .from("courses")
+          .from(table)
           .select("*")
           .eq("id", params.id)
           .single();
 
-        if (error) {
-          setError(error.message);
+        if (error || !data) {
+          setError(error?.message || "Course not found");
+          setLoading(false);
           return;
         }
-        setCourse(data as Course);
 
-        // ✅ Check if user has already purchased
-        const { data: { user } } = await supabaseAuth.auth.getUser();
-        if (user) {
-          const { data: purchase } = await supabase
+        const normalizedCourse: Course = {
+          ...data,
+          topics: data.topics || (source === "yt" ? [data.title] : []),
+          source,
+        };
+
+        setCourse(normalizedCourse);
+
+        // ✅ Check if already purchased
+        if (session?.user?.id) {
+          const { data: purchase, error: purchaseError } = await supabase
             .from("purchases")
             .select("*")
-            .eq("user_id", user.id)
+            .eq("user_id", session.user.id)
             .eq("course_id", params.id)
+            .eq("source", source)
             .maybeSingle();
 
-          if (purchase) {
-            setAlreadyPurchased(true);
-          }
+          if (purchaseError) console.error("Purchase check error:", purchaseError);
+          if (purchase) setAlreadyPurchased(true);
         }
       } catch (err) {
+        console.error(err);
         setError("Failed to fetch course");
       } finally {
         setLoading(false);
@@ -67,34 +84,45 @@ export default function CourseDetailPage() {
     };
 
     fetchCourse();
-  }, [params.id, supabaseAuth]);
+  }, [params.id, source, session?.user?.id]);
 
-  // ✅ Handle Enroll / Start Learning
+  // ✅ Handle enroll
   const handleEnroll = async () => {
-    setButtonLoading(true);
-
-    const { data: { user } } = await supabaseAuth.auth.getUser();
-    if (!user) {
-      router.push("/student-login");
+    if (!session?.user?.id) {
+      signIn("google"); // Redirect to login
       return;
     }
 
-    if (!alreadyPurchased) {
-      const { error } = await supabase
-        .from("purchases")
-        .insert([{ user_id: user.id, course_id: params.id }]);
+    if (alreadyPurchased) {
+      router.push(`/courses/${params.id}/lessons?source=${source}`);
+      return;
+    }
+
+    setButtonLoading(true);
+
+    try {
+      const { error } = await supabase.from("purchases").insert([
+        {
+          user_id: session.user.id,
+          course_id: params.id,
+          source,
+        },
+      ]);
 
       if (error) {
         console.error("Error enrolling:", error.message);
         setButtonLoading(false);
         return;
       }
-    }
 
-    router.push(`/courses/${params.id}/lessons`);
+      setAlreadyPurchased(true);
+      router.push(`/courses/${params.id}/lessons?source=${source}`);
+    } catch (err) {
+      console.error("Enrollment failed:", err);
+      setButtonLoading(false);
+    }
   };
 
-  // ✅ Loading state
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto p-6 flex flex-col items-center justify-center">
@@ -104,13 +132,10 @@ export default function CourseDetailPage() {
     );
   }
 
-  // ✅ Error state
   if (error || !course) {
     return (
       <div className="max-w-3xl mx-auto p-6 text-center">
-        <h2 className="text-lg text-red-600 mb-3">
-          {error || "Course not found"}
-        </h2>
+        <h2 className="text-lg text-red-600 mb-3">{error || "Course not found"}</h2>
         <Link href="/courses">
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -132,7 +157,6 @@ export default function CourseDetailPage() {
         transition={{ duration: 0.4 }}
         className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100"
       >
-        {/* ✅ Thumbnail */}
         {course.thumbnail_url ? (
           <motion.img
             src={course.thumbnail_url}
@@ -147,41 +171,29 @@ export default function CourseDetailPage() {
           </div>
         )}
 
-        {/* ✅ Content */}
         <div className="p-5">
-          {/* ✅ Title & Price */}
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-2xl font-bold text-gray-900">{course.title}</h1>
-            <p className="text-xl font-semibold text-rose-600">
-              ₹{course.price?.toLocaleString()}
-            </p>
+            <p className="text-xl font-semibold text-rose-600">₹{course.price?.toLocaleString()}</p>
           </div>
 
-          {/* ✅ Info box */}
           <div className="bg-rose-50 p-3 rounded-lg mb-5 text-sm">
             <p className="text-gray-700">
               <span className="font-semibold">📂 Category:</span> {course.category}
             </p>
             <p className="text-gray-700 mt-1">
-              <span className="font-semibold">📅 Created:</span>{" "}
-              {new Date(course.created_at).toLocaleDateString()}
+              <span className="font-semibold">📅 Created:</span> {new Date(course.created_at).toLocaleDateString()}
             </p>
           </div>
 
-          {/* ✅ Description */}
           <div className="mb-5">
-            <h2 className="text-lg font-semibold text-gray-800 mb-1">
-              📝 Description
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-1">📝 Description</h2>
             <p className="text-gray-700 text-sm leading-relaxed">{course.description}</p>
           </div>
 
-          {/* ✅ Topics */}
           {course.topics?.length > 0 && (
             <div className="mb-5">
-              <h2 className="text-lg font-semibold text-gray-800 mb-1">
-                📚 Topics Covered
-              </h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-1">📚 Topics Covered</h2>
               <ul className="list-disc list-inside text-gray-700 text-sm space-y-1">
                 {course.topics.map((topic, index) => (
                   <li key={index}>{topic}</li>
@@ -190,7 +202,6 @@ export default function CourseDetailPage() {
             </div>
           )}
 
-          {/* ✅ Buttons */}
           <div className="mt-6 flex flex-col sm:flex-row justify-between gap-3">
             <Link href="/courses" className="w-full sm:w-auto">
               <motion.button
@@ -208,16 +219,10 @@ export default function CourseDetailPage() {
               whileHover={{ scale: 1.05, boxShadow: "0 4px 14px rgba(0,0,0,0.15)" }}
               whileTap={{ scale: 0.97 }}
               className={`w-full sm:w-auto px-5 py-2 text-sm font-semibold text-white rounded-lg shadow transition ${
-                alreadyPurchased
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-rose-500 hover:bg-rose-600"
+                alreadyPurchased ? "bg-green-600 hover:bg-green-700" : "bg-rose-500 hover:bg-rose-600"
               } disabled:opacity-50`}
             >
-              {buttonLoading
-                ? "Processing..."
-                : alreadyPurchased
-                ? "Start Learning"
-                : "Enroll Now"}
+              {buttonLoading ? "Processing..." : alreadyPurchased ? "Start Learning" : "Enroll Now"}
             </motion.button>
           </div>
         </div>

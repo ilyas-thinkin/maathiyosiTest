@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../components/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import { FiEdit, FiTrash2, FiPlus, FiImage } from "react-icons/fi"; // ✅ Added FiImage
+import { FiEdit, FiTrash2, FiPlus, FiImage } from "react-icons/fi";
 import { motion } from "framer-motion";
 
 type Course = {
@@ -13,6 +13,8 @@ type Course = {
   price: number;
   category: string;
   thumbnail_url: string;
+  created_at: string;
+  type: "normal" | "youtube";
 };
 
 export default function AdminCoursesPage() {
@@ -26,28 +28,39 @@ export default function AdminCoursesPage() {
   }, []);
 
   const fetchCourses = async () => {
-    const { data, error } = await supabase
-      .from("courses")
-      .select("*")
-      .order("created_at", { ascending: false });
+    setLoading(true);
 
-    if (error) {
-      console.error("Error fetching courses:", error.message);
-    } else {
-      setCourses(data as Course[]);
-    }
+    const [{ data: normal, error: normalErr }, { data: yt, error: ytErr }] = await Promise.all([
+      supabase.from("courses").select("*").order("created_at", { ascending: false }),
+      supabase.from("courses_yt").select("*").order("created_at", { ascending: false }),
+    ]);
+
+    if (normalErr) console.error("Error fetching normal courses:", normalErr.message);
+    if (ytErr) console.error("Error fetching YouTube courses:", ytErr.message);
+
+    const allCourses: Course[] = [
+      ...(normal?.map((c) => ({ ...c, type: "normal" as const })) || []),
+      ...(yt?.map((c) => ({ ...c, type: "youtube" as const })) || []),
+    ];
+
+    // Sort by created_at descending
+    allCourses.sort((a, b) => (a.created_at > b.created_at ? -1 : 1));
+
+    setCourses(allCourses);
     setLoading(false);
   };
 
-  const handleDelete = async (id: string) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this course and all related data?"
-    );
-    if (!confirmDelete) return;
+  const handleDelete = async (id: string, type: "normal" | "youtube") => {
+  const confirmDelete = window.confirm(
+    `Are you sure you want to delete this ${type === "youtube" ? "YouTube" : "normal"} course?`
+  );
+  if (!confirmDelete) return;
 
-    setDeleting(id);
+  setDeleting(id);
 
-    try {
+  try {
+    if (type === "normal") {
+      // Fetch thumbnail (for deletion from storage)
       const { data: course, error: courseError } = await supabase
         .from("courses")
         .select("thumbnail_url")
@@ -55,59 +68,31 @@ export default function AdminCoursesPage() {
         .single();
       if (courseError) throw courseError;
 
-      const { data: lessons, error: lessonsError } = await supabase
-        .from("course_lessons")
-        .select("video_url")
-        .eq("course_id", id);
-      if (lessonsError) throw lessonsError;
-
-      const videoPaths = (lessons ?? [])
-        .map((lesson) =>
-          lesson.video_url?.split("/storage/v1/object/public/")[1]
-        )
-        .filter(Boolean) as string[];
-
-      const thumbnailPath = course.thumbnail_url?.split(
-        "/storage/v1/object/public/"
-      )[1];
-
-      if (videoPaths.length > 0) {
-        const { error: videoDelErr } = await supabase.storage
-          .from("course-videos")
-          .remove(videoPaths);
-        if (videoDelErr)
-          console.warn("Error deleting videos:", videoDelErr.message);
+      // Delete thumbnail if exists
+      if (course?.thumbnail_url) {
+        const thumbnailPath = course.thumbnail_url.split("/storage/v1/object/public/")[1];
+        if (thumbnailPath) {
+          await supabase.storage.from("thumbnails").remove([thumbnailPath]);
+        }
       }
 
-      if (thumbnailPath) {
-        const { error: thumbDelErr } = await supabase.storage
-          .from("thumbnails")
-          .remove([thumbnailPath]);
-        if (thumbDelErr)
-          console.warn("Error deleting thumbnail:", thumbDelErr.message);
-      }
-
-      const { error: lessonDeleteErr } = await supabase
-        .from("course_lessons")
-        .delete()
-        .eq("course_id", id);
-      if (lessonDeleteErr) throw lessonDeleteErr;
-
-      const { error: courseDeleteErr } = await supabase
-        .from("courses")
-        .delete()
-        .eq("id", id);
-      if (courseDeleteErr) throw courseDeleteErr;
-
-      setCourses(courses.filter((c) => c.id !== id));
-      alert("Course and associated files deleted successfully!");
-    } catch (error: any) {
-      console.error("Error during deletion:", error.message);
-      alert("Deletion failed: " + error.message);
+      // Delete course (lessons auto-deleted by CASCADE)
+      await supabase.from("courses").delete().eq("id", id);
+    } else {
+      // Delete YouTube course (lessons auto-deleted by CASCADE)
+      await supabase.from("courses_yt").delete().eq("id", id);
     }
 
-    setDeleting(null);
-  };
+    setCourses(courses.filter((c) => c.id !== id));
+    alert("Course deleted successfully!");
+  } catch (error: any) {
+    console.error("Error during deletion:", error.message);
+    alert("Deletion failed: " + error.message);
+  }
+
+  setDeleting(null);
+};
+
 
   if (loading) {
     return (
@@ -134,43 +119,40 @@ export default function AdminCoursesPage() {
               transition={{ duration: 0.3 }}
               className="bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden border border-gray-100"
             >
-              <img
-                src={course.thumbnail_url || "/placeholder.png"}
-                alt={course.title}
-                className="w-full h-40 object-cover"
-              />
+              <div className="relative">
+                <img
+                  src={course.thumbnail_url || "/placeholder.png"}
+                  alt={course.title}
+                  className="w-full h-40 object-cover"
+                />
+                {/* ✅ Removed YouTube Tag */}
+              </div>
               <div className="p-5 flex flex-col h-full">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {course.title}
-                </h2>
+                <h2 className="text-lg font-semibold text-gray-900">{course.title}</h2>
                 <p className="text-sm text-gray-500">{course.category}</p>
-                <p className="text-sm text-gray-700 mt-2 line-clamp-2">
-                  {course.description}
-                </p>
+                <p className="text-sm text-gray-700 mt-2 line-clamp-2">{course.description}</p>
                 <p className="text-lg font-bold text-rose-600 mt-3">
                   ₹{course.price?.toLocaleString()}
                 </p>
                 <div className="flex justify-between items-center mt-4">
                   <button
                     onClick={() =>
-                      router.push(`/admin-courses/edit/${course.id}`)
+                      router.push(
+                        course.type === "youtube"
+                          ? `/admin-courses/edityt/${course.id}`
+                          : `/admin-courses/edit/${course.id}`
+                      )
                     }
                     className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all"
                   >
                     <FiEdit /> Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(course.id)}
+                    onClick={() => handleDelete(course.id, course.type)}
                     disabled={deleting === course.id}
                     className="flex items-center gap-2 px-3 py-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-all disabled:opacity-50"
                   >
-                    {deleting === course.id ? (
-                      "Deleting..."
-                    ) : (
-                      <>
-                        <FiTrash2 /> Delete
-                      </>
-                    )}
+                    {deleting === course.id ? "Deleting..." : (<><FiTrash2 /> Delete</>)}
                   </button>
                 </div>
               </div>
@@ -179,21 +161,29 @@ export default function AdminCoursesPage() {
         </div>
       )}
 
-      {/* ✅ Floating Add Course Button */}
-      <button
-        onClick={() => router.push("/components/admin/upload-course")}
-        className="fixed bottom-6 right-6 flex items-center gap-2 px-4 py-2 bg-rose-600 text-white font-semibold rounded-full shadow-lg hover:bg-rose-700 transition-all"
-      >
-        <FiPlus className="text-xl" /> Add Course
-      </button>
+      {/* ✅ Floating Buttons Container */}
+      <div className="fixed bottom-6 right-6 flex flex-col gap-4">
+        <button
+          onClick={() => router.push("/components/admin/upload-course")}
+          className="flex items-center gap-2 px-4 py-2 bg-rose-600 text-white font-semibold rounded-full shadow-lg hover:bg-rose-700 transition-all"
+        >
+          <FiPlus className="text-xl" /> Add Course
+        </button>
 
-      {/* ✅ Floating Edit Hero Section Button */}
-      <button
-        onClick={() => router.push("/admin-courses/EditHero")}
-        className="fixed bottom-20 right-6 flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-full shadow-lg hover:bg-indigo-700 transition-all"
-      >
-        <FiImage className="text-xl" /> Edit Hero Section
-      </button>
+        <button
+          onClick={() => router.push("/components/admin/uploadytcourse")}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold rounded-full shadow-lg hover:bg-green-700 transition-all"
+        >
+          <FiPlus className="text-xl" /> Add Course with YouTube
+        </button>
+
+        <button
+          onClick={() => router.push("/admin-courses/EditHero")}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-full shadow-lg hover:bg-indigo-700 transition-all"
+        >
+          <FiImage className="text-xl" /> Edit Hero Section
+        </button>
+      </div>
     </div>
   );
 }

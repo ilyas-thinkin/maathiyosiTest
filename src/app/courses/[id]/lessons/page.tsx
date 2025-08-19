@@ -1,83 +1,118 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { createClientComponentClient } from '../../../components/lib/supabaseClient';
-import { CoursePlayer } from '../../../CoursePlayer'; // ✅ adjust path if needed
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { createClientComponentClient } from "../../../components/lib/supabaseClient";
+import { CoursePlayer } from "../../../CoursePlayer"; // ✅ path okay
 
-export default function LessonsPage() {
-  const router = useRouter();
+type Lesson = {
+  id: string;
+  title: string;
+  video_url?: string;
+  document_url?: string;
+};
+
+type Course = {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  thumbnail_url: string;
+};
+
+export default function CoursePage() {
   const params = useParams();
+  const courseId = params?.id as string;
   const supabase = createClientComponentClient();
 
-  const [authorized, setAuthorized] = useState(false);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Extract courseId safely
-  const courseId = typeof params.id === 'string' ? params.id : '';
-
   useEffect(() => {
-    const checkAccess = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    if (!courseId) return;
 
-      if (!user) {
-        router.push('/student-login');
+    const fetchCourse = async () => {
+      setLoading(true);
+
+      // ✅ Try normal course
+      const { data: normalCourse } = await supabase
+        .from("courses")
+        .select("*")
+        .eq("id", courseId)
+        .single();
+
+      // ✅ If not found, try YouTube course
+      const { data: ytCourse } = !normalCourse
+        ? await supabase.from("courses_yt").select("*").eq("id", courseId).single()
+        : { data: null };
+
+      const finalCourse = normalCourse || ytCourse;
+      if (!finalCourse) {
+        setLoading(false);
         return;
       }
+      setCourse(finalCourse);
 
-      // ✅ Check purchase
-      const { data: purchase } = await supabase
-        .from('purchases')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('course_id', courseId)
-        .maybeSingle();
+      // ✅ Fetch lessons
+      if (normalCourse) {
+        const { data: lessonsData } = await supabase
+          .from("course_lessons")
+          .select("*")
+          .eq("course_id", courseId)
+          .order("id");
 
-      if (!purchase) {
-        router.push(`/courses/${courseId}`);
-        return;
+        setLessons(lessonsData || []);
+      } else if (ytCourse) {
+        const { data: ytLessons } = await supabase
+          .from("course_lessons_yt")
+          .select("*")
+          .eq("course_id", courseId)
+          .order("id");
+
+        const mappedLessons: Lesson[] =
+          ytLessons?.map((lesson) => ({
+            id: lesson.id,
+            title: lesson.title,
+            video_url: lesson.video_url, // 🔒 proxy (students don’t see yt)
+            document_url: lesson.document_url || null,
+          })) || [];
+
+        setLessons(mappedLessons);
       }
 
-      setAuthorized(true);
       setLoading(false);
     };
 
-    if (courseId) {
-      checkAccess();
-    } else {
-      router.push('/');
-    }
-  }, [supabase, courseId, router]);
+    fetchCourse();
+  }, [courseId, supabase]);
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto p-6 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-rose-500 border-t-transparent mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading lessons...</p>
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-lg font-semibold text-gray-500">Loading...</p>
       </div>
     );
   }
 
-  if (!authorized) {
+  if (!course) {
     return (
-      <div className="max-w-4xl mx-auto p-6 text-center">
-        <p className="text-red-600 font-semibold">
-          You don’t have access to this course.
-        </p>
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-lg font-semibold text-red-500">Course not found.</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6 text-rose-600 text-center">
-        🎥 Course Lessons
-      </h1>
+    <div className="max-w-7xl mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-4 text-rose-600">{course.title}</h1>
+      <p className="text-gray-600 mb-6">{course.description}</p>
 
-      {/* ✅ CoursePlayer handles fetching + playing lessons securely */}
-      {courseId && <CoursePlayer courseId={courseId} />}
+      {lessons.length > 0 ? (
+        <CoursePlayer courseId={course.id} lessons={lessons} />
+      ) : (
+        <p className="text-gray-500">No lessons available yet.</p>
+      )}
     </div>
   );
 }

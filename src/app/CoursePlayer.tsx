@@ -1,128 +1,78 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { PlayCircle } from 'lucide-react';
-import { supabase } from '@/app/components/lib/supabaseClient'; // ✅ uses env vars
-
-type Props = {
-  courseId: string;
-};
+import React, { useState } from "react";
 
 type Lesson = {
   id: string;
   title: string;
-  description: string | null;
-  video_url: string | null; // stored as path like "videos/uuid/lesson1.mp4"
-  course_id: string;
+  video_url?: string;
+  document_url?: string;
 };
 
-export const CoursePlayer = ({ courseId }: Props) => {
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<string | null>(null);
+interface CoursePlayerProps {
+  courseId: string;
+  lessons: Lesson[];
+}
 
-  // ✅ Public bucket URL
-  const PUBLIC_VIDEO_URL =
-    'https://kcvghsnlzythcublawvf.supabase.co/storage/v1/object/public/course-videos/';
+export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, lessons }) => {
+  const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
 
-  useEffect(() => {
-    const fetchLessons = async () => {
-      const { data, error } = await supabase
-        .from('course_lessons')
-        .select('*')
-        .eq('course_id', courseId);
-
-      if (error) {
-        console.error('Error fetching lessons:', error.message);
-      } else {
-        setLessons(data || []);
-      }
-
-      setLoading(false);
-    };
-
-    fetchLessons();
-  }, [courseId]);
-
-  if (loading) {
-    return (
-      <div className="text-center text-gray-600 py-8">
-        <div className="animate-spin h-10 w-10 border-4 border-rose-500 border-t-transparent rounded-full mx-auto mb-4" />
-        Loading lessons...
-      </div>
-    );
-  }
-
-  if (lessons.length === 0) {
-    return (
-      <div className="text-center text-gray-500 italic">
-        No lessons available yet.
-      </div>
-    );
-  }
+  const currentLesson = lessons[currentLessonIndex];
 
   return (
-    <div className="space-y-6">
-      {lessons.map((lesson) => (
-        <motion.div
-          key={lesson.id}
-          whileHover={{ y: -2 }}
-          className="border border-gray-200 rounded-xl p-4 shadow-sm bg-white"
-        >
-          {/* Title */}
-          <div
-            className="flex items-center justify-between cursor-pointer"
-            onClick={() =>
-              setExpanded((prev) => (prev === lesson.id ? null : lesson.id))
-            }
-          >
-            <h2 className="text-lg font-semibold text-gray-800">
-              {lesson.title}
-            </h2>
-            <PlayCircle
-              size={26}
-              className={`transition-colors ${
-                expanded === lesson.id ? 'text-rose-500' : 'text-gray-400'
-              }`}
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Video / Lesson Content */}
+      <div className="md:col-span-3 bg-white shadow rounded-xl p-4">
+        <h2 className="text-xl font-bold mb-3">{currentLesson.title}</h2>
+
+        {/* Video */}
+        {currentLesson.video_url ? (
+          <div className="aspect-video mb-4">
+            <iframe
+              src={currentLesson.video_url}
+              title={currentLesson.title}
+              className="w-full h-full rounded-lg"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
             />
           </div>
+        ) : (
+          <p className="text-gray-500 italic">No video available for this lesson.</p>
+        )}
 
-          {/* Content */}
-          {expanded === lesson.id && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="mt-4 space-y-4"
-            >
-              {lesson.description && (
-                <p className="text-gray-700">{lesson.description}</p>
-              )}
+        {/* Document */}
+        {currentLesson.document_url && (
+          <a
+            href={currentLesson.document_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block bg-rose-600 text-white px-4 py-2 rounded-lg hover:bg-rose-700 transition"
+          >
+            View Lesson Document
+          </a>
+        )}
+      </div>
 
-              {lesson.video_url ? (
-                <div className="rounded overflow-hidden border shadow-sm">
-                  <video
-                    controls
-                    controlsList="nodownload" // ✅ disables download
-                    className="w-full aspect-video"
-                    src={
-                      lesson.video_url.startsWith('http')
-                        ? lesson.video_url
-                        : `${PUBLIC_VIDEO_URL}${lesson.video_url}`
-                    }
-                  />
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500 italic">
-                  No video uploaded for this lesson.
-                </p>
-              )}
-            </motion.div>
-          )}
-        </motion.div>
-      ))}
+      {/* Lesson List / Sidebar */}
+      <div className="bg-gray-50 rounded-xl shadow p-4 h-fit">
+        <h3 className="font-semibold text-gray-700 mb-3">Lessons</h3>
+        <ul className="space-y-2">
+          {lessons.map((lesson, index) => (
+            <li key={lesson.id}>
+              <button
+                onClick={() => setCurrentLessonIndex(index)}
+                className={`w-full text-left px-3 py-2 rounded-lg transition ${
+                  index === currentLessonIndex
+                    ? "bg-rose-600 text-white"
+                    : "bg-white hover:bg-gray-100"
+                }`}
+              >
+                {lesson.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 };
