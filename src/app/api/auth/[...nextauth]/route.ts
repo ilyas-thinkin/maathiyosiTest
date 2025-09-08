@@ -1,15 +1,14 @@
-// src/app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
+import GoogleProvider from "next-auth/providers/google";
 
-const authHandler = NextAuth({
+const handler = NextAuth({
   providers: [
-    Google({
+    GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
-  // Optional: Add more NextAuth config here (callbacks, pages, etc.)
+  secret: process.env.NEXTAUTH_SECRET,
 });
 
-export const { GET, POST } = authHandler;
+export { handler as GET, handler as POST }; // 👈 required for App Router

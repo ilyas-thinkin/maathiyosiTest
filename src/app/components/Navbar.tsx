@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, User, LogOut, BookOpen, Settings } from 'lucide-react';
+import { Menu, X, LogOut, BookOpen, Settings, LayoutDashboard } from 'lucide-react';
 import { createClientComponentClient } from "@/app/components/lib/supabaseClient";
 
 export default function Navbar() {
@@ -13,13 +13,19 @@ export default function Navbar() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // ✅ Load current user
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
     };
-
     getUser();
 
+    // ✅ Listen for auth state changes (login/logout/refresh)
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    // ✅ Handle click outside dropdown
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
@@ -29,8 +35,13 @@ export default function Navbar() {
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      subscription.subscription.unsubscribe();
     };
   }, [supabase]);
+
+  const handleLogin = async () => {
+    await supabase.auth.signInWithOAuth({ provider: "google" });
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -59,12 +70,12 @@ export default function Navbar() {
             <NavLink href="/contact" label="Contact" />
 
             {!user ? (
-              <Link
-                href="/student-login"
+              <button
+                onClick={handleLogin}
                 className="bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-2 rounded-lg font-medium hover:shadow-lg transition-all duration-200 hover:scale-105"
               >
                 Login
-              </Link>
+              </button>
             ) : (
               <div className="relative" ref={dropdownRef}>
                 <button
@@ -89,6 +100,16 @@ export default function Navbar() {
                       </p>
                       <p className="text-xs text-gray-500">{user.email}</p>
                     </div>
+
+                    <Link
+                      href="/dashboard"
+                      className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <LayoutDashboard className="w-4 h-4" />
+                      <span>Dashboard</span>
+                    </Link>
+
                     <Link
                       href="/account"
                       className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -97,6 +118,7 @@ export default function Navbar() {
                       <Settings className="w-4 h-4" />
                       <span>Account Settings</span>
                     </Link>
+
                     <Link
                       href="/my-courses"
                       className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -105,6 +127,7 @@ export default function Navbar() {
                       <BookOpen className="w-4 h-4" />
                       <span>My Courses</span>
                     </Link>
+
                     <button
                       onClick={handleLogout}
                       className="flex items-center space-x-3 w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -141,14 +164,14 @@ export default function Navbar() {
             <MobileNavLink href="/" label="Home" setOpen={setOpen} />
             <MobileNavLink href="/courses" label="Courses" setOpen={setOpen} />
             <MobileNavLink href="/contact" label="Contact" setOpen={setOpen} />
+
             {!user ? (
-              <Link
-                href="/student-login"
-                className="block bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-3 rounded-lg font-medium text-center"
-                onClick={() => setOpen(false)}
+              <button
+                onClick={handleLogin}
+                className="block w-full bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-3 rounded-lg font-medium text-center"
               >
                 Login
-              </Link>
+              </button>
             ) : (
               <div className="space-y-3 pt-3 border-t border-gray-200">
                 <div className="flex items-center space-x-3 px-3 py-2">
@@ -164,8 +187,11 @@ export default function Navbar() {
                     <p className="text-xs text-gray-500">{user.email}</p>
                   </div>
                 </div>
+
+                <MobileNavLink href="/dashboard" label="Dashboard" setOpen={setOpen} />
                 <MobileNavLink href="/account" label="Account Settings" setOpen={setOpen} />
                 <MobileNavLink href="/my-courses" label="My Courses" setOpen={setOpen} />
+
                 <button
                   onClick={handleLogout}
                   className="flex items-center space-x-3 w-full text-left px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"

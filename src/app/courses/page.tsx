@@ -1,60 +1,183 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../components/lib/supabaseClient";
-import Card from "../components/AllCourseCard"; // ✅ import updated card
+import { motion } from "framer-motion";
 
-type Course = {
-  id: string;
+type DbCourse = {
+  id: string | number;
   title: string;
-  description: string;
-  category: string;
-  thumbnail_url: string;
-  topics: string[];
-  created_at: string;
   price: number;
+  thumbnail_url?: string | null;
+};
+
+type UnifiedCourse = {
+  id: string;
+  rawId: string | number;
+  title: string;
+  price: number;
+  thumbnailUrl?: string | null;
 };
 
 export default function CoursesPage() {
-  const [courses, setCourses] = useState<Course[]>([]);
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [courses, setCourses] = useState<UnifiedCourse[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchCourses = async () => {
-      const { data, error } = await supabase
-        .from("courses")
-        .select("*")
-        .order("created_at", { ascending: false });
+    let cancelled = false;
 
-      if (error) {
-        console.error("Error fetching courses:", error.message);
-        return;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const { data: normal, error: errNormal } = await supabase
+          .from("courses")
+          .select("id, title, price, thumbnail_url")
+          .order("created_at", { ascending: false } as any);
+
+        if (errNormal) throw errNormal;
+
+        const { data: yt, error: errYt } = await supabase
+          .from("courses_yt")
+          .select("id, title, price, thumbnail_url")
+          .order("created_at", { ascending: false } as any);
+
+        if (errYt) throw errYt;
+
+        const normMapped: UnifiedCourse[] =
+          (normal as DbCourse[] | null)?.map((c) => ({
+            id: `c_${c.id}`,
+            rawId: c.id,
+            title: c.title,
+            price: Number(c.price ?? 0),
+            thumbnailUrl: c.thumbnail_url ?? null,
+          })) ?? [];
+
+        const ytMapped: UnifiedCourse[] =
+          (yt as DbCourse[] | null)?.map((c) => ({
+            id: `yt_${c.id}`,
+            rawId: c.id,
+            title: c.title,
+            price: Number(c.price ?? 0),
+            thumbnailUrl: c.thumbnail_url ?? null,
+          })) ?? [];
+
+        const merged = [...normMapped, ...ytMapped];
+
+        if (!cancelled) setCourses(merged);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || "Failed to load courses");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    }
 
-      setCourses(data as Course[]);
+    load();
+    return () => {
+      cancelled = true;
     };
-
-    fetchCourses();
   }, []);
 
-  return (
-    <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-4xl font-bold mb-8 text-center text-rose-600">
-        Our Courses
-      </h1>
+  const skeletons = useMemo(() => new Array(6).fill(0).map((_, i) => i), []);
 
-      <div className="flex flex-wrap justify-center gap-8">
-        {courses.map((course) => (
-          <Link key={course.id} href={`/courses/${course.id}`}>
-            <Card
-              title={course.title}
-              description={course.description}
-              price={`₹${course.price?.toLocaleString()}`}
-              thumbnail={course.thumbnail_url}  // ✅ pass thumbnail here
-            />
-          </Link>
-        ))}
+  const handleClick = (id: string) => {
+    router.push(`/courses/${encodeURIComponent(id)}`);
+  };
+
+  return (
+    <main className="mx-auto max-w-7xl px-4 py-12">
+      <div className="mb-8 text-center">
+        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-red-600 to-red-400 text-transparent bg-clip-text">
+          Explore Our Courses
+        </h1>
+        <p className="mt-3 text-zinc-600 text-lg">
+          Learn, grow, and unlock your potential 🚀
+        </p>
       </div>
-    </div>
+
+      {error && (
+        <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 text-red-800 shadow-sm">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {skeletons.map((i) => (
+            <div
+              key={i}
+              className="animate-pulse rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-sm"
+            >
+              <div className="aspect-video bg-zinc-100" />
+              <div className="p-4 space-y-3">
+                <div className="h-5 bg-zinc-200 rounded w-3/4" />
+                <div className="h-5 bg-zinc-200 rounded w-1/2" />
+                <div className="h-8 bg-red-100 rounded w-24" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <motion.div
+          layout
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
+        >
+          {courses.map((course) => (
+            <motion.div
+              key={course.id}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleClick(course.id)}
+              className="cursor-pointer rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-md hover:shadow-xl transition-all duration-300 group flex flex-col"
+            >
+              {/* Thumbnail */}
+              <div className="relative aspect-video overflow-hidden">
+                <img
+                  src={course.thumbnailUrl || "/default-thumb.jpg"}
+                  alt={course.title}
+                  className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+              </div>
+
+              {/* Content */}
+              <div className="flex flex-col flex-grow p-5">
+                <h3 className="text-lg font-semibold text-zinc-900 group-hover:text-red-600 transition-colors duration-300">
+                  {course.title}
+                </h3>
+                <p className="mt-2 text-sm text-zinc-500 flex-grow">
+                  Tap to explore and enroll instantly.
+                </p>
+
+                {/* Bottom section with price + button */}
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="text-lg font-bold text-red-600">
+                    ₹{course.price}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // prevent card click firing
+                      handleClick(course.id);
+                    }}
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium shadow-md hover:bg-red-700 transition-colors"
+                  >
+                    Enroll Now
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+
+          {courses.length === 0 && !error && (
+            <div className="col-span-full rounded-2xl border border-zinc-200 p-8 text-center text-zinc-600">
+              No courses available right now.
+            </div>
+          )}
+        </motion.div>
+      )}
+    </main>
   );
 }

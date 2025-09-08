@@ -2,226 +2,157 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { supabase } from "../../components/lib/supabaseClient";
-import { createClientComponentClient } from "../../components/lib/supabaseClient";
-import { motion } from "framer-motion";
 
 type Course = {
   id: string;
   title: string;
-  description: string;
-  category: string;
-  thumbnail_url: string;
-  topics: string[];
-  created_at: string;
+  description?: string | null;
+  thumbnail_url?: string | null;
   price: number;
 };
 
-export default function CourseDetailPage() {
-  const params = useParams();
+export default function CourseDetailsPage() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const supabaseAuth = createClientComponentClient();
 
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [alreadyPurchased, setAlreadyPurchased] = useState(false);
-  const [buttonLoading, setButtonLoading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isPurchased, setIsPurchased] = useState(false);
 
-  // ✅ Fetch course details
   useEffect(() => {
-    const fetchCourse = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("courses")
-          .select("*")
-          .eq("id", params.id)
-          .single();
+    async function loadCourse() {
+      if (!id) return;
+      setLoading(true);
 
-        if (error) {
-          setError(error.message);
-          return;
-        }
-        setCourse(data as Course);
+      const prefix = id.split("_")[0]; // c / yt
+      const rawId = id.split("_")[1];
 
-        // ✅ Check if user has already purchased
-        const { data: { user } } = await supabaseAuth.auth.getUser();
-        if (user) {
-          const { data: purchase } = await supabase
-            .from("purchases")
-            .select("*")
-            .eq("user_id", user.id)
-            .eq("course_id", params.id)
-            .maybeSingle();
-
-          if (purchase) {
-            setAlreadyPurchased(true);
-          }
-        }
-      } catch (err) {
-        setError("Failed to fetch course");
-      } finally {
-        setLoading(false);
+      // 1. Check user login
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user;
+      if (!user) {
+        router.push(`/login?redirect=/courses/${id}`);
+        return;
       }
-    };
+      setUserId(user.id);
 
-    fetchCourse();
-  }, [params.id, supabaseAuth]);
+      // 2. Fetch course info
+      const table = prefix === "c" ? "courses" : "courses_yt";
+      const { data: courseData, error: courseError } = await supabase
+        .from(table)
+        .select("id, title, description, thumbnail_url, price")
+        .eq("id", rawId)
+        .single();
 
-  // ✅ Handle Enroll / Start Learning
-  const handleEnroll = async () => {
-    setButtonLoading(true);
+      if (courseError) {
+        console.error("Error fetching course:", courseError.message);
+      }
 
-    const { data: { user } } = await supabaseAuth.auth.getUser();
-    if (!user) {
-      router.push("/student-login");
+      if (courseData) {
+        setCourse({
+          id: id,
+          title: courseData.title,
+          description: courseData.description,
+          thumbnail_url: courseData.thumbnail_url,
+          price: Number(courseData.price),
+        });
+      }
+
+      // 3. Check if purchased
+      const { data: purchaseData } = await supabase
+        .from("purchases")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("course_id", rawId)
+        .eq("source", prefix)
+        .eq("status", "success")
+        .maybeSingle();
+
+      if (purchaseData) {
+        setIsPurchased(true);
+      }
+
+      setLoading(false);
+    }
+
+    loadCourse();
+  }, [id, router]);
+
+  const handleEnrollNow = async () => {
+    if (!course || !userId) return;
+
+    const prefix = id.split("_")[0];
+    const rawId = id.split("_")[1];
+
+    const { error } = await supabase.from("purchases").insert([
+      {
+        user_id: userId,
+        course_id: rawId,
+        source: prefix,
+        status: "success",
+        payment_id: "test-" + Date.now(),
+      },
+    ]);
+
+    if (error) {
+      alert("Failed to enroll: " + error.message);
       return;
     }
 
-    if (!alreadyPurchased) {
-      const { error } = await supabase
-        .from("purchases")
-        .insert([{ user_id: user.id, course_id: params.id }]);
-
-      if (error) {
-        console.error("Error enrolling:", error.message);
-        setButtonLoading(false);
-        return;
-      }
-    }
-
-    router.push(`/courses/${params.id}/lessons`);
+    setIsPurchased(true);
   };
 
-  // ✅ Loading state
+  const handleStartLearning = () => {
+    router.push(`/courses/${id}/lessons`);
+  };
+
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto p-6 flex flex-col items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-rose-400 border-t-transparent mb-4"></div>
-        <p className="text-gray-600 text-sm font-medium">Loading course details...</p>
-      </div>
+      <div className="p-10 text-center text-zinc-600">Loading course...</div>
     );
   }
 
-  // ✅ Error state
-  if (error || !course) {
+  if (!course) {
     return (
-      <div className="max-w-3xl mx-auto p-6 text-center">
-        <h2 className="text-lg text-red-600 mb-3">
-          {error || "Course not found"}
-        </h2>
-        <Link href="/courses">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.97 }}
-            className="px-4 py-2 bg-rose-500 text-white rounded-lg shadow hover:shadow-md hover:bg-rose-600 transition"
-          >
-            ← Back to Courses
-          </motion.button>
-        </Link>
-      </div>
+      <div className="p-10 text-center text-zinc-600">Course not found</div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100"
-      >
-        {/* ✅ Thumbnail */}
-        {course.thumbnail_url ? (
-          <motion.img
+    <main className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mb-8">
+        {course.thumbnail_url && (
+          <img
             src={course.thumbnail_url}
             alt={course.title}
-            className="w-full h-56 object-cover"
-            whileHover={{ scale: 1.03 }}
-            transition={{ duration: 0.3 }}
+            className="w-full rounded-xl mb-6"
           />
-        ) : (
-          <div className="w-full h-56 bg-gray-200 flex items-center justify-center text-gray-500">
-            No Image Available
-          </div>
         )}
+        <h1 className="text-3xl font-bold text-zinc-900">{course.title}</h1>
+        {course.description && (
+          <p className="mt-3 text-zinc-600 text-lg leading-relaxed">
+            {course.description}
+          </p>
+        )}
+      </div>
 
-        {/* ✅ Content */}
-        <div className="p-5">
-          {/* ✅ Title & Price */}
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-2xl font-bold text-gray-900">{course.title}</h1>
-            <p className="text-xl font-semibold text-rose-600">
-              ₹{course.price?.toLocaleString()}
-            </p>
-          </div>
-
-          {/* ✅ Info box */}
-          <div className="bg-rose-50 p-3 rounded-lg mb-5 text-sm">
-            <p className="text-gray-700">
-              <span className="font-semibold">📂 Category:</span> {course.category}
-            </p>
-            <p className="text-gray-700 mt-1">
-              <span className="font-semibold">📅 Created:</span>{" "}
-              {new Date(course.created_at).toLocaleDateString()}
-            </p>
-          </div>
-
-          {/* ✅ Description */}
-          <div className="mb-5">
-            <h2 className="text-lg font-semibold text-gray-800 mb-1">
-              📝 Description
-            </h2>
-            <p className="text-gray-700 text-sm leading-relaxed">{course.description}</p>
-          </div>
-
-          {/* ✅ Topics */}
-          {course.topics?.length > 0 && (
-            <div className="mb-5">
-              <h2 className="text-lg font-semibold text-gray-800 mb-1">
-                📚 Topics Covered
-              </h2>
-              <ul className="list-disc list-inside text-gray-700 text-sm space-y-1">
-                {course.topics.map((topic, index) => (
-                  <li key={index}>{topic}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* ✅ Buttons */}
-          <div className="mt-6 flex flex-col sm:flex-row justify-between gap-3">
-            <Link href="/courses" className="w-full sm:w-auto">
-              <motion.button
-                whileHover={{ scale: 1.05, boxShadow: "0 4px 14px rgba(0,0,0,0.1)" }}
-                whileTap={{ scale: 0.97 }}
-                className="w-full px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-lg hover:bg-gray-300 transition"
-              >
-                ← Back to Courses
-              </motion.button>
-            </Link>
-
-            <motion.button
-              onClick={handleEnroll}
-              disabled={buttonLoading}
-              whileHover={{ scale: 1.05, boxShadow: "0 4px 14px rgba(0,0,0,0.15)" }}
-              whileTap={{ scale: 0.97 }}
-              className={`w-full sm:w-auto px-5 py-2 text-sm font-semibold text-white rounded-lg shadow transition ${
-                alreadyPurchased
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-rose-500 hover:bg-rose-600"
-              } disabled:opacity-50`}
-            >
-              {buttonLoading
-                ? "Processing..."
-                : alreadyPurchased
-                ? "Start Learning"
-                : "Enroll Now"}
-            </motion.button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
+      {isPurchased ? (
+        <button
+          onClick={handleStartLearning}
+          className="rounded-xl bg-green-600 px-8 py-3 text-lg font-semibold text-white hover:bg-green-700 transition-colors shadow-md"
+        >
+          Start Learning
+        </button>
+      ) : (
+        <button
+          onClick={handleEnrollNow}
+          className="rounded-xl bg-red-600 px-8 py-3 text-lg font-semibold text-white hover:bg-red-700 transition-colors shadow-md"
+        >
+          Enroll Now — ₹{course.price.toLocaleString("en-IN")}
+        </button>
+      )}
+    </main>
   );
 }

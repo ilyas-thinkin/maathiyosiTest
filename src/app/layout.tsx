@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "./components/Navbar"; 
+import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import { Providers } from "./providers"; // ✅ import client wrapper
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,20 +28,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        
-        {/* ✅ Global Navbar */}
-        <Navbar />
-
-        {/* ✅ Push page content down so it doesn’t hide under fixed navbar */}
-        <main className="pt-20 min-h-screen">
-          {children}
-        </main>
-
-        {/* ✅ Global Footer */}
-        <Footer />
-
-        {/* ✅ Add any global scripts or components here */}
-        
+        {/* ✅ SessionProvider wrapped in Providers.tsx (client component) */}
+        <Providers>
+          <Navbar />
+          <main className="pt-20 min-h-screen">{children}</main>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );

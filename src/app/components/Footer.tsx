@@ -29,8 +29,8 @@ export default function Footer() {
     ],
     support: [
       { name: 'Help Center', href: '#' },
-      { name: 'Privacy Policy', href: '/privacy-policy' },
-      { name: 'Terms & Conditions', href: '/terms-and-conditions' },
+      { name: 'Privacy Policy', href: '/privacy' },
+      { name: 'Terms & Conditions', href: '/terms' },
       { name: 'Contact Us', href: '/contact' },
     ],
   };
@@ -227,11 +227,14 @@ export default function Footer() {
               </div>
               
               <div className="flex space-x-8 text-lg">
-                <a href="/privacy-policy" className="text-white/90 hover:text-white transition-colors duration-200 font-medium">
+                <a href="/privacy" className="text-white/90 hover:text-white transition-colors duration-200 font-medium">
                   Privacy Policy
                 </a>
-                <a href="/terms-and-conditions" className="text-white/90 hover:text-white transition-colors duration-200 font-medium">
+                <a href="/terms" className="text-white/90 hover:text-white transition-colors duration-200 font-medium">
                   Terms & Conditions
+                </a>
+                <a href="/return" className="text-white/90 hover:text-white transition-colors duration-200 font-medium">
+                  Return Policy
                 </a>
                 <a href="/contact" className="text-white/90 hover:text-white transition-colors duration-200 font-medium">
                   Contact
