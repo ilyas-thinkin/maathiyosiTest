@@ -1,48 +1,88 @@
 "use client";
 
-import { supabase } from "../components/lib/supabaseClient";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "../components/lib/supabaseClient";
+
+export const dynamic = "force-dynamic"; // Prevents static build issues
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get("redirect"); // get redirect if present
+  const redirectUrl = searchParams.get("redirect"); // if ?redirect=/something exists
 
   const handleLogin = async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin + "/login", // ensures callback comes back here
-      },
-    });
-    if (error) {
-      alert(error.message);
+    try {
+      setLoading(true);
+
+      const redirectTo = typeof window !== "undefined"
+        ? `${window.location.origin}/login`
+        : "/login"; // fallback to prevent SSR crash
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+        },
+      });
+
+      if (error) {
+        alert(error.message);
+        setLoading(false);
+      }
+    } catch (err: any) {
+      console.error("Login error:", err.message || err);
+      alert("Failed to initiate login. Please try again.");
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      const user = data.user;
-      if (user) {
-        // Check if student record exists
-        const { data: student } = await supabase
-          .from("students")
-          .select("*")
-          .eq("id", user.id)
-          .single();
+    let isMounted = true;
 
-        if (student) {
-          // If redirect param exists → go there, else → dashboard
-          router.push(redirectUrl || "/dashboard");
-        } else {
-          router.push("/profile-setup");
+    const checkUser = async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+
+        if (error) {
+          console.error("Supabase getUser error:", error.message);
+          return;
         }
+
+        const user = data?.user;
+        if (user) {
+          // Check if student record exists
+          const { data: student, error: studentError } = await supabase
+            .from("students")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+
+          if (studentError && studentError.code !== "PGRST116") {
+            console.error("Student fetch error:", studentError.message);
+            return;
+          }
+
+          // If student record exists → redirect to dashboard or redirect param
+          if (isMounted) {
+            if (student) {
+              router.push(redirectUrl || "/dashboard");
+            } else {
+              router.push("/profile-setup");
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error("Error checking user session:", err.message || err);
       }
-    });
+    };
+
+    checkUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, [router, redirectUrl]);
 
   return (
