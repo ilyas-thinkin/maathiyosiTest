@@ -233,8 +233,8 @@ export default function Footer() {
                 <a href="/terms" className="text-white/90 hover:text-white transition-colors duration-200 font-medium">
                   Terms & Conditions
                 </a>
-                <a href="/return" className="text-white/90 hover:text-white transition-colors duration-200 font-medium">
-                  Return Policy
+                <a href="/Refun" className="text-white/90 hover:text-white transition-colors duration-200 font-medium">
+                  Refund Policy
                 </a>
                 <a href="/contact" className="text-white/90 hover:text-white transition-colors duration-200 font-medium">
                   Contact
