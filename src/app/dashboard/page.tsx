@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../components/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { Pencil, LogOut, Save, X } from "lucide-react";
 
 export default function Dashboard() {
-  const [student, setStudent] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ phone: "", grade: "", school_or_job: "" });
+  const [form, setForm] = useState({username: "", phone: "", grade: "", school_or_job: "" });
 
   const router = useRouter();
 
@@ -23,23 +25,31 @@ export default function Dashboard() {
         return;
       }
 
-      // Get student details
-      const { data: student } = await supabase
-        .from("students")
+      // Fetch user data from public.user
+      const { data: userData, error } = await supabase
+        .from("user")
         .select("*")
         .eq("id", user.id)
         .single();
 
-      if (!student) {
-        router.push("/profile-setup"); // force setup if missing
-      } else {
-        setStudent({ ...student, name: user.user_metadata.full_name, avatar: user.user_metadata.avatar_url });
-        setForm({
-          phone: student.phone || "",
-          grade: student.grade || "",
-          school_or_job: student.school_or_job || "",
-        });
+      if (error || !userData) {
+        router.push("/profile-setup");
+        return;
       }
+
+      setUser({
+        ...userData,
+        name: user.user_metadata.full_name,
+        avatar: user.user_metadata.avatar_url,
+      });
+
+      setForm({
+        phone: userData.phone || "",
+        username: userData.username || "",
+        grade: userData.grade || "",
+        school_or_job: userData.school_or_job || "",
+      });
+
       setLoading(false);
     };
 
@@ -53,109 +63,161 @@ export default function Dashboard() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!student) return;
+    if (!user) return;
 
     const { error } = await supabase
-      .from("students")
+      .from("user")
       .update({
+        username: form.username,
         phone: form.phone,
         grade: form.grade,
         school_or_job: form.school_or_job,
       })
-      .eq("id", student.id);
+      .eq("id", user.id);
 
     if (error) {
       alert(error.message);
     } else {
-      setStudent({ ...student, ...form });
+      setUser({ ...user, ...form });
       setEditing(false);
     }
   };
 
-  if (loading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  if (loading)
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <motion.div
+          className="text-2xl font-semibold text-gray-600"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          Loading Dashboard...
+        </motion.div>
+      </div>
+    );
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-purple-100">
-      <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md text-center space-y-6">
-        {/* Avatar */}
-        <img
-          src={student.avatar}
+    <div className="flex h-screen items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-100 p-4">
+      <motion.div
+        className="backdrop-blur-lg bg-white/30 shadow-xl rounded-3xl p-8 w-full max-w-md text-center space-y-6 border border-white/20"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        {/* Profile Avatar */}
+        <motion.img
+          src={user.avatar || "/default-avatar.png"}
           alt="Profile"
-          className="w-24 h-24 rounded-full mx-auto border-4 border-blue-500 shadow"
+          className="w-24 h-24 rounded-full mx-auto border-4 border-indigo-400 shadow-lg"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.4 }}
         />
 
-        {/* Welcome */}
-        <h1 className="text-2xl font-bold text-gray-800">
-          Welcome, {student.name || "Student"} 👋
-        </h1>
+        {/* Welcome Text */}
+        <motion.h1
+          className="text-2xl font-bold text-gray-800"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          Welcome, {user.name || "User"} 👋
+        </motion.h1>
 
-        {!editing ? (
-          <div className="space-y-2 text-gray-600">
-            <p>📧 {student.email}</p>
-            <p>📞 {student.phone}</p>
-            <p>🎓 {student.grade}</p>
-            <p>🏫 {student.school_or_job}</p>
+        <AnimatePresence mode="wait">
+          {!editing ? (
+            <motion.div
+              key="view-mode"
+              className="space-y-2 text-gray-700"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <p>📧 <span className="font-medium">{user.email}</span></p>
+              <p>📞 {user.phone || "Not provided"}</p>
+              <p>📞 {user.username || "Not provided"}</p>
+              <p>🎓 {user.grade || "Not provided"}</p>
+              <p>🏫 {user.school_or_job || "Not provided"}</p>
+              
 
-            <div className="flex justify-center gap-4 mt-4">
-              <button
-                onClick={() => setEditing(true)}
-                className="bg-blue-500 text-white px-5 py-2 rounded-lg shadow hover:bg-blue-600"
-              >
-                Edit
-              </button>
-              <button
-                onClick={handleLogout}
-                className="bg-red-500 text-white px-5 py-2 rounded-lg shadow hover:bg-red-600"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={handleUpdate} className="space-y-3">
-            <input
-              type="text"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              placeholder="Phone"
-              className="w-full border rounded-lg px-3 py-2"
-              required
-            />
-            <input
-              type="text"
-              value={form.grade}
-              onChange={(e) => setForm({ ...form, grade: e.target.value })}
-              placeholder="Grade"
-              className="w-full border rounded-lg px-3 py-2"
-              required
-            />
-            <input
-              type="text"
-              value={form.school_or_job}
-              onChange={(e) => setForm({ ...form, school_or_job: e.target.value })}
-              placeholder="School / College / Job"
-              className="w-full border rounded-lg px-3 py-2"
-              required
-            />
+              <div className="flex justify-center gap-4 mt-4">
+                <button
+                  onClick={() => setEditing(true)}
+                  className="flex items-center gap-2 bg-indigo-500 text-white px-5 py-2 rounded-lg shadow hover:bg-indigo-600 transition"
+                >
+                  <Pencil size={18} /> Edit
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 bg-red-500 text-white px-5 py-2 rounded-lg shadow hover:bg-red-600 transition"
+                >
+                  <LogOut size={18} /> Logout
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.form
+              key="edit-mode"
+              onSubmit={handleUpdate}
+              className="space-y-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+                <input
+                type="text"
+                value={form.username}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="Phone"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                required
+              />
+              <input
+                type="text"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="Phone"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                required
+              />
+              <input
+                type="text"
+                value={form.grade}
+                onChange={(e) => setForm({ ...form, grade: e.target.value })}
+                placeholder="Grade"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                required
+              />
+              <input
+                type="text"
+                value={form.school_or_job}
+                onChange={(e) =>
+                  setForm({ ...form, school_or_job: e.target.value })
+                }
+                placeholder="School / College / Job"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                required
+              />
 
-            <div className="flex justify-center gap-4 mt-4">
-              <button
-                type="submit"
-                className="bg-green-500 text-white px-5 py-2 rounded-lg shadow hover:bg-green-600"
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditing(false)}
-                className="bg-gray-400 text-white px-5 py-2 rounded-lg shadow hover:bg-gray-500"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
+              <div className="flex justify-center gap-4 mt-4">
+                <button
+                  type="submit"
+                  className="flex items-center gap-2 bg-green-500 text-white px-5 py-2 rounded-lg shadow hover:bg-green-600 transition"
+                >
+                  <Save size={18} /> Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="flex items-center gap-2 bg-gray-400 text-white px-5 py-2 rounded-lg shadow hover:bg-gray-500 transition"
+                >
+                  <X size={18} /> Cancel
+                </button>
+              </div>
+            </motion.form>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }

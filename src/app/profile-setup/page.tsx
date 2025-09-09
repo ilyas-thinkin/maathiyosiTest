@@ -5,6 +5,7 @@ import { supabase } from "../components/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
 export default function ProfileSetup() {
+    const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [grade, setGrade] = useState("");
   const [schoolJob, setSchoolJob] = useState("");
@@ -25,9 +26,10 @@ export default function ProfileSetup() {
     e.preventDefault();
     if (!user) return;
 
-    const { error } = await supabase.from("students").insert([
+    const { error } = await supabase.from("user").insert([
       {
         id: user.id,
+        username: user.user_metadata.full_name || "",
         email: user.email,
         phone,
         grade,
@@ -47,6 +49,14 @@ export default function ProfileSetup() {
       <div className="bg-white shadow-md rounded-xl p-6 w-96">
         <h1 className="text-xl font-semibold mb-4">Complete Your Profile</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
+            <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full border px-3 py-2 rounded-lg"
+            required
+          />
           <input
             type="text"
             placeholder="Phone Number"

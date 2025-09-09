@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../components/lib/supabaseClient";
+import { motion } from "framer-motion";
+import { LogIn } from "lucide-react";
 
 export default function LoginContent() {
   const [loading, setLoading] = useState(false);
@@ -47,22 +49,24 @@ export default function LoginContent() {
 
         const user = data?.user;
         if (user) {
-          // Check if student record exists
-          const { data: student, error: studentError } = await supabase
-            .from("students")
+          // Check if user record exists in public.user
+          const { data: userRecord, error: userError } = await supabase
+            .from("user")
             .select("*")
             .eq("id", user.id)
             .single();
 
-          if (studentError && studentError.code !== "PGRST116") {
-            console.error("Student fetch error:", studentError.message);
+          if (userError && userError.code !== "PGRST116") {
+            console.error("User fetch error:", userError.message);
             return;
           }
 
           if (isMounted) {
-            if (student) {
+            if (userRecord) {
+              // If user already exists, go to dashboard
               router.push(redirectUrl || "/dashboard");
             } else {
+              // If no record, go to profile setup
               router.push("/profile-setup");
             }
           }
@@ -80,17 +84,54 @@ export default function LoginContent() {
   }, [router, redirectUrl]);
 
   return (
-    <div className="flex h-screen items-center justify-center bg-gray-100">
-      <div className="bg-white shadow-lg p-8 rounded-2xl w-96 text-center">
-        <h1 className="text-2xl font-semibold mb-6">Login to Maathiyosi</h1>
-        <button
+    <div className="flex h-screen items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-100">
+      <motion.div
+        className="backdrop-blur-lg bg-white/30 shadow-xl rounded-3xl p-8 w-full max-w-sm text-center border border-white/20"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        {/* Logo Section */}
+        <motion.div
+          className="mb-6 flex flex-col items-center space-y-3"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.4 }}
+        >
+          <img
+            src="/logo.png" // Replace with your actual logo
+            alt="Maathiyosi Logo"
+            className="w-20 h-20 rounded-full shadow-lg border-2 border-indigo-400"
+          />
+          <h1 className="text-2xl font-bold text-gray-800">Welcome to Maathiyosi</h1>
+          <p className="text-gray-600 text-sm">Your learning journey starts here!</p>
+        </motion.div>
+
+        {/* Login Button */}
+        <motion.button
           onClick={handleLogin}
           disabled={loading}
-          className="w-full flex items-center justify-center bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-xl shadow"
+          className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-xl shadow transition-transform transform hover:scale-105 active:scale-95"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
+          <LogIn size={20} />
           {loading ? "Redirecting..." : "Sign in with Google"}
-        </button>
-      </div>
+        </motion.button>
+
+        {/* Footer Note */}
+        <motion.p
+          className="text-gray-500 text-xs mt-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          By signing in, you agree to our{" "}
+          <span className="underline cursor-pointer hover:text-indigo-600">
+            Terms & Privacy Policy
+          </span>
+        </motion.p>
+      </motion.div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { Menu, X, LogOut, BookOpen, Settings, LayoutDashboard } from 'lucide-react';
 import { createClientComponentClient } from "@/app/components/lib/supabaseClient";
@@ -11,21 +12,22 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const supabase = createClientComponentClient();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    // ✅ Load current user
+    // ✅ Load current user on initial load
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
     };
     getUser();
 
-    // ✅ Listen for auth state changes (login/logout/refresh)
+    // ✅ Listen for auth state changes
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
-    // ✅ Handle click outside dropdown
+    // ✅ Close dropdown when clicking outside
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
@@ -38,10 +40,6 @@ export default function Navbar() {
       subscription.subscription.unsubscribe();
     };
   }, [supabase]);
-
-  const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({ provider: "google" });
-  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -71,7 +69,7 @@ export default function Navbar() {
 
             {!user ? (
               <button
-                onClick={handleLogin}
+                onClick={() => router.push("/login")}
                 className="bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-2 rounded-lg font-medium hover:shadow-lg transition-all duration-200 hover:scale-105"
               >
                 Login
@@ -167,7 +165,10 @@ export default function Navbar() {
 
             {!user ? (
               <button
-                onClick={handleLogin}
+                onClick={() => {
+                  setOpen(false);
+                  router.push("/login");
+                }}
                 className="block w-full bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-3 rounded-lg font-medium text-center"
               >
                 Login
