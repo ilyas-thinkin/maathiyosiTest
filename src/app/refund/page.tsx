@@ -9,13 +9,13 @@ export default function RefundPage() {
       <p className="mb-4">
         Once a course is purchased, access is granted immediately. 
         Due to the nature of digital products, <strong>we do not offer refunds</strong> 
-        once a course has been accessed or downloaded.
+         once a course has been accessed or downloaded.
       </p>
 
       <h2 className="text-xl font-semibold mt-6 mb-2">2. Duplicate Payments</h2>
       <p className="mb-4">
         If you are charged twice for the same course, please email 
-        <strong> support@maathiyosi.io </strong> with payment proof. 
+        <strong> info@thinkinlab.com </strong> with payment proof. 
         We will initiate a refund within 7 working days.
       </p>
 
@@ -29,7 +29,7 @@ export default function RefundPage() {
       <h2 className="text-xl font-semibold mt-6 mb-2">4. Contact Us</h2>
       <p className="mb-4">
         For refund or cancellation-related queries, please contact us at 
-        <strong> support@maathiyosi.io</strong>.
+        <strong> info@thinkinlab.com</strong>.
       </p>
     </div>
   );
