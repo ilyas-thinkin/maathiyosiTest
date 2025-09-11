@@ -8,7 +8,7 @@ export default function RefundPage() {
       <h2 className="text-xl font-semibold mt-6 mb-2">1. Course Purchases</h2>
       <p className="mb-4">
         Once a course is purchased, access is granted immediately. 
-        Due to the nature of digital products, <strong>we do not offer refunds</strong> 
+        Due to the nature of digital products, <strong>we do not offer refunds </strong> 
          once a course has been accessed or downloaded.
       </p>
 
