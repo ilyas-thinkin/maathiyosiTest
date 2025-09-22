@@ -14,15 +14,35 @@ export default function Navbar() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
+  // Fetch current session
   useEffect(() => {
-    // ✅ Load current user on initial load
     const getUser = async () => {
+      // ✅ Check student login from Supabase
       const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+
+      // ✅ Check admin login from localStorage
+      const adminId = localStorage.getItem('adminId');
+      const adminName = localStorage.getItem('adminName');
+      const isAdmin = localStorage.getItem('isAdmin') === 'true';
+
+      if (user) {
+        // Student session
+        setUser(user);
+      } else if (isAdmin && adminId && adminName) {
+        // Admin session
+        setUser({
+          email: `${adminName} (Admin)`,
+          user_metadata: { full_name: adminName },
+          isAdmin: true
+        });
+      } else {
+        setUser(null);
+      }
     };
+
     getUser();
 
-    // ✅ Listen for auth state changes
+    // ✅ Listen for Supabase auth changes
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -33,6 +53,7 @@ export default function Navbar() {
         setDropdownOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
@@ -41,10 +62,32 @@ export default function Navbar() {
     };
   }, [supabase]);
 
+  // ✅ Fixed Logout Logic
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    window.location.href = "/";
+    try {
+      const isAdmin = localStorage.getItem('isAdmin') === 'true';
+
+      if (isAdmin) {
+        // ✅ Logout Admin (Clear localStorage)
+        localStorage.removeItem('isAdmin');
+        localStorage.removeItem('adminId');
+        localStorage.removeItem('adminName');
+        console.log("Admin logged out successfully");
+      } else {
+        // ✅ Logout Student (Supabase session)
+        await supabase.auth.signOut();
+        console.log("Student logged out successfully");
+      }
+
+      // Reset state
+      setUser(null);
+
+      // Redirect to home
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout error:", error);
+      alert("Failed to log out. Try again.");
+    }
   };
 
   return (
@@ -209,6 +252,7 @@ export default function Navbar() {
   );
 }
 
+/* ----- Helper Components ----- */
 function NavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
@@ -221,7 +265,15 @@ function NavLink({ href, label }: { href: string; label: string }) {
   );
 }
 
-function MobileNavLink({ href, label, setOpen }: { href: string; label: string; setOpen: (open: boolean) => void }) {
+function MobileNavLink({
+  href,
+  label,
+  setOpen,
+}: {
+  href: string;
+  label: string;
+  setOpen: (open: boolean) => void;
+}) {
   return (
     <Link
       href={href}

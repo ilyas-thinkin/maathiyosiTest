@@ -8,6 +8,7 @@ import { LogIn } from "lucide-react";
 
 export default function LoginContent() {
   const [loading, setLoading] = useState(false);
+  const [checkingUser, setCheckingUser] = useState(true);
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect"); // ?redirect=/something
@@ -39,40 +40,50 @@ export default function LoginContent() {
     let isMounted = true;
 
     const checkUser = async () => {
+      setCheckingUser(true);
       try {
-        const { data, error } = await supabase.auth.getUser();
+        // ✅ Step 1: Get current session
+        const { data: { user }, error } = await supabase.auth.getUser();
 
         if (error) {
           console.error("Supabase getUser error:", error.message);
+          setCheckingUser(false);
           return;
         }
 
-        const user = data?.user;
-        if (user) {
-          // Check if user record exists in public.user
-          const { data: userRecord, error: userError } = await supabase
-            .from("user")
-            .select("*")
-            .eq("id", user.id)
-            .single();
+        // ❌ No active session, stop here
+        if (!user) {
+          setCheckingUser(false);
+          return;
+        }
 
-          if (userError && userError.code !== "PGRST116") {
-            console.error("User fetch error:", userError.message);
-            return;
-          }
+        // ✅ Step 2: Check if the user exists in the "user" table
+        const { data: userRecord, error: userError } = await supabase
+          .from("user")
+          .select("*")
+          .eq("id", user.id)
+          .single();
 
-          if (isMounted) {
-            if (userRecord) {
-              // If user already exists, go to dashboard
-              router.push(redirectUrl || "/dashboard");
-            } else {
-              // If no record, go to profile setup
-              router.push("/profile-setup");
-            }
+        if (userError && userError.code !== "PGRST116") {
+          console.error("Error fetching user:", userError.message);
+          setCheckingUser(false);
+          return;
+        }
+
+        // ✅ Step 3: Decide where to redirect
+        if (isMounted) {
+          if (userRecord) {
+            // Existing user -> Dashboard
+            router.push(redirectUrl || "/dashboard");
+          } else {
+            // New user -> Profile Setup
+            router.push("/profile-setup");
           }
         }
       } catch (err: any) {
         console.error("Error checking user session:", err.message || err);
+      } finally {
+        setCheckingUser(false);
       }
     };
 
@@ -99,7 +110,7 @@ export default function LoginContent() {
           transition={{ duration: 0.4 }}
         >
           <img
-            src="/logo.png" // Replace with your actual logo
+            src="/logo.png"
             alt="Maathiyosi Logo"
             className="w-20 h-20 rounded-full shadow-lg border-2 border-indigo-400"
           />
@@ -107,17 +118,21 @@ export default function LoginContent() {
           <p className="text-gray-600 text-sm">Your learning journey starts here!</p>
         </motion.div>
 
-        {/* Login Button */}
-        <motion.button
-          onClick={handleLogin}
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-xl shadow transition-transform transform hover:scale-105 active:scale-95"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <LogIn size={20} />
-          {loading ? "Redirecting..." : "Sign in with Google"}
-        </motion.button>
+        {/* Show loader while checking user */}
+        {checkingUser ? (
+          <p className="text-gray-500 text-sm">Checking session...</p>
+        ) : (
+          <motion.button
+            onClick={handleLogin}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-xl shadow transition-transform transform hover:scale-105 active:scale-95"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <LogIn size={20} />
+            {loading ? "Redirecting..." : "Sign in with Google"}
+          </motion.button>
+        )}
 
         {/* Footer Note */}
         <motion.p
