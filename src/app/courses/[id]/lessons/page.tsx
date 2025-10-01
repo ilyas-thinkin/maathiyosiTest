@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import ThinkingRobotLoader from "../../../components/RobotThinkingLoader";
 
+// Dynamic import for React wrapper
 const MuxPlayer = dynamic(() => import("@mux/mux-player-react"), { ssr: false });
 
 type Lesson = {
@@ -30,6 +31,7 @@ export default function CourseLessonsPage() {
   const [openLesson, setOpenLesson] = useState<string | null>(null);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
 
+  // Fetch course + lessons
   useEffect(() => {
     if (!params?.id) return;
 
@@ -50,7 +52,8 @@ export default function CourseLessonsPage() {
     fetchCourse();
   }, [params?.id]);
 
-  const extractMuxPlaybackId = (url: string): string | null => {
+  // Extract Mux playback ID from URL
+  const extractMuxPlaybackId = (url: string | undefined): string | null => {
     if (!url) return null;
     const match = url.match(/stream\.mux\.com\/([^/.]+)/);
     return match ? match[1] : null;
@@ -79,17 +82,17 @@ export default function CourseLessonsPage() {
         {course.lessons && course.lessons.length > 0 ? (
           course.lessons.map((lesson, index) => {
             const videoUrl = lesson.mux_video_id || lesson.video_url;
-            const playbackId = videoUrl ? extractMuxPlaybackId(videoUrl) : null;
+            const playbackId = extractMuxPlaybackId(videoUrl);
             const isOpen = openLesson === lesson.id;
             const isDocView = viewDoc === lesson.id;
 
             return (
               <div key={lesson.id} className="p-4">
-                {/* Title Row */}
+                {/* Lesson Title */}
                 <button
                   onClick={() => {
                     setOpenLesson(isOpen ? null : lesson.id);
-                    setViewDoc(null); // reset doc view when switching
+                    setViewDoc(null);
                   }}
                   className="flex justify-between items-center w-full text-left"
                 >
@@ -109,7 +112,7 @@ export default function CourseLessonsPage() {
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      {/* Left side: details or document */}
+                      {/* Left: Description / Document */}
                       <motion.div
                         className="space-y-4"
                         initial={{ opacity: 0 }}
@@ -118,13 +121,9 @@ export default function CourseLessonsPage() {
                       >
                         {!isDocView ? (
                           <>
-                            <h3 className="text-xl font-bold text-gray-800">
-                              {lesson.title}
-                            </h3>
+                            <h3 className="text-xl font-bold text-gray-800">{lesson.title}</h3>
                             {lesson.description && (
-                              <p className="text-gray-600 text-sm leading-relaxed">
-                                {lesson.description}
-                              </p>
+                              <p className="text-gray-600 text-sm leading-relaxed">{lesson.description}</p>
                             )}
 
                             {lesson.document_url && (
@@ -152,12 +151,13 @@ export default function CourseLessonsPage() {
                             <iframe
                               src={lesson.document_url || ""}
                               className="w-full h-[400px] border rounded-lg shadow-md"
+                              title={`Document for ${lesson.title}`}
                             />
                           </>
                         )}
                       </motion.div>
 
-                      {/* Right side: video */}
+                      {/* Right: Video */}
                       <div className="w-full">
                         {playbackId ? (
                           <div className="w-full aspect-video rounded-lg overflow-hidden shadow-md">
@@ -165,9 +165,17 @@ export default function CourseLessonsPage() {
                               playbackId={playbackId}
                               streamType="on-demand"
                               metadata={{ video_title: lesson.title }}
-                              className="w-full h-full"
+                              className="w-full h-full rounded-lg overflow-hidden"
                               autoPlay={false}
-                              controls
+                              // Correct way to pass default-controls
+                              {...({ "default-controls": true } as any)}
+                              style={{
+                                "--primary-color": "#de5252",
+                                "--progress-bar-color": "#de5252",
+                                "--progress-bar-background-color": "#f3f4f6",
+                                "--controls-backdrop-color": "rgba(0,0,0,0.5)",
+                                "--controls-backdrop-filter": "blur(6px)",
+                              } as React.CSSProperties}
                             />
                           </div>
                         ) : (
@@ -181,9 +189,7 @@ export default function CourseLessonsPage() {
             );
           })
         ) : (
-          <p className="text-gray-500 text-center font-medium">
-            No lessons available
-          </p>
+          <p className="text-gray-500 text-center font-medium">No lessons available</p>
         )}
       </div>
     </motion.div>
