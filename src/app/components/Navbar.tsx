@@ -4,89 +4,82 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { Menu, X, LogOut, BookOpen, Settings, LayoutDashboard } from 'lucide-react';
-import { createClientComponentClient } from "@/app/components/lib/supabaseClient";
+import { createClientComponentClient } from '@/app/components/lib/supabaseClient';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const supabase = createClientComponentClient();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const supabase = createClientComponentClient();
 
-  // Fetch current session
+  // --- Fetch session & subscribe to auth changes ---
   useEffect(() => {
-    const getUser = async () => {
-      // ✅ Check student login from Supabase
-      const { data: { user } } = await supabase.auth.getUser();
+    let isMounted = true;
 
-      // ✅ Check admin login from localStorage
-      const adminId = localStorage.getItem('adminId');
-      const adminName = localStorage.getItem('adminName');
-      const isAdmin = localStorage.getItem('isAdmin') === 'true';
-
-      if (user) {
-        // Student session
-        setUser(user);
-      } else if (isAdmin && adminId && adminName) {
-        // Admin session
-        setUser({
-          email: `${adminName} (Admin)`,
-          user_metadata: { full_name: adminName },
-          isAdmin: true
-        });
-      } else {
-        setUser(null);
-      }
+    const fetchUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (isMounted) setUser(user);
     };
 
-    getUser();
+    fetchUser();
 
-    // ✅ Listen for Supabase auth changes
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
+    // Subscribe to login/logout changes
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (isMounted) {
+          setUser(session?.user ?? null);
+        }
+      }
+    );
 
-    // ✅ Close dropdown when clicking outside
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
+      isMounted = false;
       document.removeEventListener('mousedown', handleClickOutside);
       subscription.subscription.unsubscribe();
     };
   }, [supabase]);
 
-  // ✅ Fixed Logout Logic
+  // --- Fixed Logout (Complete Cleanup) ---
   const handleLogout = async () => {
     try {
-      const isAdmin = localStorage.getItem('isAdmin') === 'true';
+      console.log('Attempting logout...');
 
-      if (isAdmin) {
-        // ✅ Logout Admin (Clear localStorage)
-        localStorage.removeItem('isAdmin');
-        localStorage.removeItem('adminId');
-        localStorage.removeItem('adminName');
-        console.log("Admin logged out successfully");
-      } else {
-        // ✅ Logout Student (Supabase session)
-        await supabase.auth.signOut();
-        console.log("Student logged out successfully");
+      // 1. Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Supabase signOut error:', error.message);
+        alert('Logout failed. Please try again.');
+        return;
       }
 
-      // Reset state
+      // 2. Clear browser storage
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // 3. Reset local state
       setUser(null);
 
-      // Redirect to home
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Logout error:", error);
-      alert("Failed to log out. Try again.");
+      // 4. Force refresh UI
+      router.refresh();
+
+      // 5. Redirect to login
+      router.push('/login');
+
+      console.log('Logout successful, redirected to /login');
+    } catch (err: any) {
+      console.error('Logout failed:', err.message || err);
+      alert('Logout failed. Try again.');
     }
   };
 
@@ -112,7 +105,7 @@ export default function Navbar() {
 
             {!user ? (
               <button
-                onClick={() => router.push("/login")}
+                onClick={() => router.push('/login')}
                 className="bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-2 rounded-lg font-medium hover:shadow-lg transition-all duration-200 hover:scale-105"
               >
                 Login
@@ -124,7 +117,7 @@ export default function Navbar() {
                   className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <img
-                    src={user.user_metadata?.avatar_url || "/default-avatar.png"}
+                    src={user.user_metadata?.avatar_url || '/default-avatar.png'}
                     alt="Profile"
                     className="w-8 h-8 rounded-full border-2 border-gray-200"
                   />
@@ -188,11 +181,7 @@ export default function Navbar() {
               onClick={() => setOpen(!open)}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              {open ? (
-                <X className="w-6 h-6 text-gray-700" />
-              ) : (
-                <Menu className="w-6 h-6 text-gray-700" />
-              )}
+              {open ? <X className="w-6 h-6 text-gray-700" /> : <Menu className="w-6 h-6 text-gray-700" />}
             </button>
           </div>
         </div>
@@ -210,7 +199,7 @@ export default function Navbar() {
               <button
                 onClick={() => {
                   setOpen(false);
-                  router.push("/login");
+                  router.push('/login');
                 }}
                 className="block w-full bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-3 rounded-lg font-medium text-center"
               >
@@ -220,7 +209,7 @@ export default function Navbar() {
               <div className="space-y-3 pt-3 border-t border-gray-200">
                 <div className="flex items-center space-x-3 px-3 py-2">
                   <img
-                    src={user.user_metadata?.avatar_url || "/default-avatar.png"}
+                    src={user.user_metadata?.avatar_url || '/default-avatar.png'}
                     alt="Profile"
                     className="w-10 h-10 rounded-full border-2 border-gray-200"
                   />
@@ -252,13 +241,10 @@ export default function Navbar() {
   );
 }
 
-/* ----- Helper Components ----- */
+/* --- Helper Components --- */
 function NavLink({ href, label }: { href: string; label: string }) {
   return (
-    <Link
-      href={href}
-      className="text-gray-700 hover:text-red-600 font-medium transition-colors relative group"
-    >
+    <Link href={href} className="text-gray-700 hover:text-red-600 font-medium transition-colors relative group">
       {label}
       <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-red-500 to-pink-600 transition-all duration-200 group-hover:w-full"></span>
     </Link>

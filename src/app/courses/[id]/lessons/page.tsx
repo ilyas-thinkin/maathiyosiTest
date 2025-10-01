@@ -1,387 +1,191 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { supabase } from "../../../components/lib/supabaseClient";
+import { useParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import { motion, AnimatePresence } from "framer-motion";
+import ThinkingRobotLoader from "../../../components/RobotThinkingLoader";
+
+const MuxPlayer = dynamic(() => import("@mux/mux-player-react"), { ssr: false });
 
 type Lesson = {
   id: string;
-  course_id: string;
   title: string;
-  description: string | null;
-  duration: string | null;
-  youtube_url: string | null;
-  document_url: string | null;
+  description?: string;
+  video_url?: string;
+  mux_video_id?: string;
+  document_url?: string;
 };
 
 type Course = {
   id: string;
   title: string;
-  description?: string | null;
-  thumbnail_url?: string | null;
-  price: number;
+  lessons?: Lesson[];
 };
 
-// ✅ Clean YouTube embed with no-branding
-function getYouTubeEmbedUrl(url: string) {
-  try {
-    const urlObj = new URL(url);
-
-    let videoId = "";
-    if (urlObj.hostname === "youtu.be") {
-      videoId = urlObj.pathname.slice(1);
-    } else if (urlObj.searchParams.get("v")) {
-      videoId = urlObj.searchParams.get("v") || "";
-    }
-
-    if (videoId) {
-      // ✅ Most clean embed setup
-      return `https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0&controls=0&disablekb=1&iv_load_policy=3&showinfo=0`;
-    }
-
-    return url; // fallback
-  } catch {
-    return url;
-  }
-}
-
 export default function CourseLessonsPage() {
-  const params = useParams();
-  const router = useRouter();
-  const courseId = params?.id as string;
-
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const params = useParams<{ id: string }>();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [isPurchased, setIsPurchased] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
+  const [openLesson, setOpenLesson] = useState<string | null>(null);
+  const [viewDoc, setViewDoc] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!courseId) return;
-      
+    if (!params?.id) return;
+
+    const fetchCourse = async () => {
       setLoading(true);
-
-      const prefix = courseId.split("_")[0]; // c / yt
-      const rawId = courseId.split("_")[1];
-
-      // 1. Check user authentication
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData?.user;
-      
-      setAuthChecked(true);
-      
-      if (!user) {
+      try {
+        const res = await fetch(`/api/admin/fetch-mux-details-course?id=${params.id}`);
+        const data = await res.json();
+        setCourse(data.error ? null : data);
+      } catch (err) {
+        console.error(err);
+        setCourse(null);
+      } finally {
         setLoading(false);
-        return;
       }
-      
-      setUserId(user.id);
-
-      // 2. Fetch course info
-      const table = prefix === "c" ? "courses" : "courses_yt";
-      const { data: courseData, error: courseError } = await supabase
-        .from(table)
-        .select("id, title, description, thumbnail_url, price")
-        .eq("id", rawId)
-        .single();
-
-      if (courseError) {
-        console.error("Error fetching course:", courseError);
-        setLoading(false);
-        return;
-      }
-
-      if (courseData) {
-        setCourse({
-          id: courseId,
-          title: courseData.title,
-          description: courseData.description,
-          thumbnail_url: courseData.thumbnail_url,
-          price: Number(courseData.price),
-        });
-      }
-
-      // 3. Check if purchased
-      const sourceValue = prefix === "c" ? "regular" : prefix === "yt" ? "yt" : prefix;
-      const { data: purchaseData } = await supabase
-        .from("purchases")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("course_id", rawId)
-        .eq("source", sourceValue)
-        .eq("status", "success")
-        .maybeSingle();
-
-      if (purchaseData) {
-        setIsPurchased(true);
-        
-        // 4. Fetch lessons only if purchased
-        const lessonsTable = prefix === "c" ? "course_lessons" : "course_lessons_yt";
-        const { data: lessonsData, error: lessonsError } = await supabase
-          .from(lessonsTable)
-          .select("*")
-          .eq("course_id", rawId)
-          .order("created_at", { ascending: true });
-
-        if (lessonsError) {
-          console.error("Error fetching lessons:", lessonsError);
-        } else {
-          setLessons(lessonsData || []);
-          if (lessonsData && lessonsData.length > 0) {
-            setSelectedLesson(lessonsData[0]);
-          }
-        }
-      }
-
-      setLoading(false);
     };
 
-    fetchData();
-  }, [courseId, router]);
+    fetchCourse();
+  }, [params?.id]);
 
-  const handleLogin = () => {
-    router.push(`/login?redirect=/courses/${courseId}/lessons`);
+  const extractMuxPlaybackId = (url: string): string | null => {
+    if (!url) return null;
+    const match = url.match(/stream\.mux\.com\/([^/.]+)/);
+    return match ? match[1] : null;
   };
 
-  const handlePurchase = () => {
-    router.push(`/courses/${courseId}`);
-  };
+  if (loading) return <ThinkingRobotLoader />;
+  if (!course) return <p className="p-6 font-semibold text-red-600">Course not found.</p>;
 
-  const handleEnrollNow = async () => {
-    if (!course || !userId) return;
-
-    const prefix = courseId.split("_")[0];
-    const rawId = courseId.split("_")[1];
-
-    const { error } = await supabase.from("purchases").insert([
-      {
-        user_id: userId,
-        course_id: rawId,
-        source: prefix,
-        status: "success",
-        payment_id: "test-" + Date.now(),
-      },
-    ]);
-
-    if (error) {
-      alert("Failed to enroll: " + error.message);
-      return;
-    }
-
-    setIsPurchased(true);
-    
-    // Fetch lessons after successful purchase
-    const lessonsTable = prefix === "c" ? "course_lessons" : "course_lessons_yt";
-    const { data: lessonsData, error: lessonsError } = await supabase
-      .from(lessonsTable)
-      .select("*")
-      .eq("course_id", rawId)
-      .order("created_at", { ascending: true });
-
-    if (lessonsError) {
-      console.error("Error fetching lessons:", lessonsError);
-    } else {
-      setLessons(lessonsData || []);
-      if (lessonsData && lessonsData.length > 0) {
-        setSelectedLesson(lessonsData[0]);
-      }
-    }
-  };
-
-  if (loading) {
-    return <p className="p-6 text-center">Loading...</p>;
-  }
-
-  // Show login prompt if user is not authenticated
-  if (authChecked && !userId) {
-    return (
-      <main className="mx-auto max-w-4xl px-4 py-10">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-zinc-900 mb-4">
-            Login Required
-          </h1>
-          <p className="text-zinc-600 mb-6">
-            You need to be logged in to access course lessons.
-          </p>
-          <button
-            onClick={handleLogin}
-            className="rounded-xl bg-blue-600 px-8 py-3 text-lg font-semibold text-white hover:bg-blue-700 transition-colors shadow-md"
-          >
-            Login
-          </button>
-        </div>
-      </main>
-    );
-  }
-
-  // Show purchase prompt if user hasn't purchased the course
-  if (authChecked && userId && !isPurchased && course) {
-    return (
-      <main className="mx-auto max-w-4xl px-4 py-10">
-        <div className="mb-8">
-          {course.thumbnail_url && (
-            <img
-              src={course.thumbnail_url}
-              alt={course.title}
-              className="w-full rounded-xl mb-6"
-            />
-          )}
-          <h1 className="text-3xl font-bold text-zinc-900">{course.title}</h1>
-          {course.description && (
-            <p className="mt-3 text-zinc-600 text-lg leading-relaxed">
-              {course.description}
-            </p>
-          )}
-        </div>
-
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-zinc-900 mb-4">
-            Purchase Required
-          </h2>
-          <p className="text-zinc-600 mb-6">
-            You need to purchase this course to access the lessons.
-          </p>
-          <div className="space-x-4">
-            <button
-              onClick={handleEnrollNow}
-              className="rounded-xl bg-red-600 px-8 py-3 text-lg font-semibold text-white hover:bg-red-700 transition-colors shadow-md"
-            >
-              Enroll Now — ₹{course.price.toLocaleString("en-IN")}
-            </button>
-            <button
-              onClick={handlePurchase}
-              className="rounded-xl bg-gray-600 px-8 py-3 text-lg font-semibold text-white hover:bg-gray-700 transition-colors shadow-md"
-            >
-              View Course Details
-            </button>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  // Show course not found if course data couldn't be loaded
-  if (authChecked && !course) {
-    return (
-      <main className="mx-auto max-w-4xl px-4 py-10">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-zinc-900 mb-4">
-            Course Not Found
-          </h1>
-          <p className="text-zinc-600 mb-6">
-            The requested course could not be found.
-          </p>
-          <button
-            onClick={() => router.push('/courses')}
-            className="rounded-xl bg-blue-600 px-8 py-3 text-lg font-semibold text-white hover:bg-blue-700 transition-colors shadow-md"
-          >
-            Browse All Courses
-          </button>
-        </div>
-      </main>
-    );
-  }
-
-  // Show no lessons message if user has purchased but no lessons exist
-  if (isPurchased && lessons.length === 0) {
-    return (
-      <main className="mx-auto max-w-4xl px-4 py-10">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-zinc-900 mb-4">
-            {course?.title}
-          </h1>
-          <p className="text-zinc-600 mb-6">
-            No lessons are available for this course yet.
-          </p>
-          <button
-            onClick={() => router.push('/courses')}
-            className="rounded-xl bg-blue-600 px-8 py-3 text-lg font-semibold text-white hover:bg-blue-700 transition-colors shadow-md"
-          >
-            Browse Other Courses
-          </button>
-        </div>
-      </main>
-    );
-  }
-
-  // Main lessons view (user is authenticated and has purchased the course)
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <div className="w-1/4 bg-gray-100 p-4 overflow-y-auto border-r">
-        <div className="mb-4">
-          <button
-            onClick={() => router.push('/courses')}
-            className="text-blue-600 hover:text-blue-800 text-sm mb-2"
-          >
-            ← Back to Courses
-          </button>
-          <h2 className="text-xl font-bold">{course?.title}</h2>
-          <p className="text-sm text-gray-600 mt-1">Lessons</p>
-        </div>
-        <ul className="space-y-2">
-          {lessons.map((lesson) => (
-            <li
-              key={lesson.id}
-              className={`p-2 cursor-pointer rounded-md ${
-                selectedLesson?.id === lesson.id
-                  ? "bg-blue-500 text-white"
-                  : "bg-white hover:bg-gray-200"
-              }`}
-              onClick={() => setSelectedLesson(lesson)}
-            >
-              <p className="font-medium">{lesson.title}</p>
-              {lesson.duration && (
-                <p className="text-sm text-gray-600">{lesson.duration}</p>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
+    <motion.div
+      className="max-w-7xl mx-auto p-6 bg-white rounded-2xl shadow-lg"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
+    >
+      <motion.h1
+        className="text-3xl font-bold mb-6 text-[#de5252] text-center"
+        initial={{ y: -30, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1, duration: 0.5 }}
+      >
+        {course.title} - Lessons
+      </motion.h1>
 
-      {/* Lesson Player */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        {selectedLesson ? (
-          <div>
-            <h1 className="text-2xl font-bold">{selectedLesson.title}</h1>
-            {selectedLesson.description && (
-              <p className="mt-2 text-gray-700">{selectedLesson.description}</p>
-            )}
+      <div className="divide-y divide-gray-200 border rounded-xl">
+        {course.lessons && course.lessons.length > 0 ? (
+          course.lessons.map((lesson, index) => {
+            const videoUrl = lesson.mux_video_id || lesson.video_url;
+            const playbackId = videoUrl ? extractMuxPlaybackId(videoUrl) : null;
+            const isOpen = openLesson === lesson.id;
+            const isDocView = viewDoc === lesson.id;
 
-            {selectedLesson.youtube_url && (
-              <div
-                className="mt-4 w-full aspect-video rounded-lg shadow-md"
-                onContextMenu={(e) => e.preventDefault()} // ✅ disable right-click
-              >
-                <iframe
-                  className="w-full h-full rounded-lg pointer-events-auto"
-                  src={getYouTubeEmbedUrl(selectedLesson.youtube_url)}
-                  allow="autoplay; encrypted-media"
-                  allowFullScreen
-                  sandbox="allow-scripts allow-same-origin allow-presentation"
-                  style={{ pointerEvents: "auto" }}
-                ></iframe>
+            return (
+              <div key={lesson.id} className="p-4">
+                {/* Title Row */}
+                <button
+                  onClick={() => {
+                    setOpenLesson(isOpen ? null : lesson.id);
+                    setViewDoc(null); // reset doc view when switching
+                  }}
+                  className="flex justify-between items-center w-full text-left"
+                >
+                  <span className="text-lg font-semibold text-[#de5252]">
+                    {index + 1}. {lesson.title}
+                  </span>
+                  <span className="text-gray-500">{isOpen ? "▲" : "▼"}</span>
+                </button>
+
+                {/* Expandable Content */}
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.div
+                      className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {/* Left side: details or document */}
+                      <motion.div
+                        className="space-y-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        {!isDocView ? (
+                          <>
+                            <h3 className="text-xl font-bold text-gray-800">
+                              {lesson.title}
+                            </h3>
+                            {lesson.description && (
+                              <p className="text-gray-600 text-sm leading-relaxed">
+                                {lesson.description}
+                              </p>
+                            )}
+
+                            {lesson.document_url && (
+                              <button
+                                onClick={() => setViewDoc(lesson.id)}
+                                className="inline-block px-4 py-2 text-sm rounded-lg bg-[#de5252] text-white hover:bg-[#f66] transition-colors"
+                              >
+                                📄 View Document
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex justify-between items-center mb-2">
+                              <h3 className="text-lg font-semibold text-gray-800">
+                                {lesson.title} - Document
+                              </h3>
+                              <button
+                                onClick={() => setViewDoc(null)}
+                                className="px-2 py-1 text-sm rounded bg-gray-300 hover:bg-gray-400"
+                              >
+                                Hide Document
+                              </button>
+                            </div>
+                            <iframe
+                              src={lesson.document_url || ""}
+                              className="w-full h-[400px] border rounded-lg shadow-md"
+                            />
+                          </>
+                        )}
+                      </motion.div>
+
+                      {/* Right side: video */}
+                      <div className="w-full">
+                        {playbackId ? (
+                          <div className="w-full aspect-video rounded-lg overflow-hidden shadow-md">
+                            <MuxPlayer
+                              playbackId={playbackId}
+                              streamType="on-demand"
+                              metadata={{ video_title: lesson.title }}
+                              className="w-full h-full"
+                              autoPlay={false}
+                              controls
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-xs text-red-500">No video available</p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            )}
-
-            {selectedLesson.document_url && (
-              <a
-                href={selectedLesson.document_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 inline-block text-blue-600 underline"
-              >
-                📄 View Document
-              </a>
-            )}
-          </div>
+            );
+          })
         ) : (
-          <p>Select a lesson to start learning.</p>
+          <p className="text-gray-500 text-center font-medium">
+            No lessons available
+          </p>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -2,157 +2,175 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { supabase } from "../../components/lib/supabaseClient";
+import ThinkingRobotLoader from "../../components/RobotThinkingLoader";
+
+type Lesson = {
+  id: string;
+  title: string;
+  video_url?: string;
+};
 
 type Course = {
   id: string;
   title: string;
-  description?: string | null;
-  thumbnail_url?: string | null;
-  price: number;
+  description?: string;
+  category?: string;
+  price?: number;
+  thumbnail_url?: string;
+  lessons?: Lesson[];
 };
 
 export default function CourseDetailsPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
   const router = useRouter();
-
   const [course, setCourse] = useState<Course | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [isPurchased, setIsPurchased] = useState(false);
+  const [courseLoading, setCourseLoading] = useState(true);
+  const [userLoading, setUserLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
+  // Fetch course data
   useEffect(() => {
-    async function loadCourse() {
-      if (!id) return;
-      setLoading(true);
+    if (!params?.id) return;
 
-      const prefix = id.split("_")[0]; // c / yt
-      const rawId = id.split("_")[1];
-
-      // 1. Check user login
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData?.user;
-      if (!user) {
-        router.push(`/login?redirect=/courses/${id}`);
-        return;
+    const fetchCourse = async () => {
+      setCourseLoading(true);
+      try {
+        const res = await fetch(`/api/admin/fetch-mux-details-course?id=${params.id}`);
+        const data = await res.json();
+        setCourse(data.error ? null : data);
+      } catch (err) {
+        console.error(err);
+        setCourse(null);
+      } finally {
+        setCourseLoading(false);
       }
-      setUserId(user.id);
+    };
 
-      // 2. Fetch course info
-      const table = prefix === "c" ? "courses" : "courses_yt";
-      const { data: courseData, error: courseError } = await supabase
-        .from(table)
-        .select("id, title, description, thumbnail_url, price")
-        .eq("id", rawId)
-        .single();
+    fetchCourse();
+  }, [params?.id]);
 
-      if (courseError) {
-        console.error("Error fetching course:", courseError.message);
+  // Check user session
+  useEffect(() => {
+    const checkUser = async () => {
+      setUserLoading(true);
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        setUser(user);
+      } catch (err) {
+        console.error("Error checking user session:", err);
+        setUser(null);
+      } finally {
+        setUserLoading(false);
       }
+    };
+    checkUser();
+  }, []);
 
-      if (courseData) {
-        setCourse({
-          id: id,
-          title: courseData.title,
-          description: courseData.description,
-          thumbnail_url: courseData.thumbnail_url,
-          price: Number(courseData.price),
-        });
-      }
+  // Show loader while either course or user is loading
+  if (courseLoading || userLoading) return <ThinkingRobotLoader />;
 
-      // 3. Check if purchased
-      const { data: purchaseData } = await supabase
-        .from("purchases")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("course_id", rawId)
-        .eq("source", prefix)
-        .eq("status", "success")
-        .maybeSingle();
-
-      if (purchaseData) {
-        setIsPurchased(true);
-      }
-
-      setLoading(false);
-    }
-
-    loadCourse();
-  }, [id, router]);
-
-  const handleEnrollNow = async () => {
-    if (!course || !userId) return;
-
-    const prefix = id.split("_")[0];
-    const rawId = id.split("_")[1];
-
-    const { error } = await supabase.from("purchases").insert([
-      {
-        user_id: userId,
-        course_id: rawId,
-        source: prefix,
-        status: "success",
-        payment_id: "test-" + Date.now(),
-      },
-    ]);
-
-    if (error) {
-      alert("Failed to enroll: " + error.message);
-      return;
-    }
-
-    setIsPurchased(true);
-  };
-
-  const handleStartLearning = () => {
-    router.push(`/courses/${id}/lessons`);
-  };
-
-  if (loading) {
-    return (
-      <div className="p-10 text-center text-zinc-600">Loading course...</div>
-    );
-  }
-
-  if (!course) {
-    return (
-      <div className="p-10 text-center text-zinc-600">Course not found</div>
-    );
-  }
+  if (!course) return <p className="p-6 font-semibold text-red-600">Course not found.</p>;
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-10">
-      <div className="mb-8">
-        {course.thumbnail_url && (
-          <img
-            src={course.thumbnail_url}
-            alt={course.title}
-            className="w-full rounded-xl mb-6"
-          />
-        )}
-        <h1 className="text-3xl font-bold text-zinc-900">{course.title}</h1>
-        {course.description && (
-          <p className="mt-3 text-zinc-600 text-lg leading-relaxed">
-            {course.description}
-          </p>
-        )}
-      </div>
+    <motion.div
+      className="max-w-6xl mx-auto p-10 bg-[#fff5f5] rounded-3xl shadow-2xl"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+    >
+      {/* Header */}
+      <motion.h1
+        className="text-5xl font-extrabold mb-6 text-[#de5252] leading-tight"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.6 }}
+      >
+        {course.title}
+      </motion.h1>
 
-      {isPurchased ? (
-        <button
-          onClick={handleStartLearning}
-          className="rounded-xl bg-green-600 px-8 py-3 text-lg font-semibold text-white hover:bg-green-700 transition-colors shadow-md"
-        >
-          Start Learning
-        </button>
-      ) : (
-        <button
-          onClick={handleEnrollNow}
-          className="rounded-xl bg-red-600 px-8 py-3 text-lg font-semibold text-white hover:bg-red-700 transition-colors shadow-md"
-        >
-          Enroll Now — ₹{course.price.toLocaleString("en-IN")}
-        </button>
+      {/* Thumbnail */}
+      {course.thumbnail_url && (
+        <motion.img
+          src={course.thumbnail_url}
+          alt={course.title}
+          className="w-full h-36 object-cover rounded-xl shadow-lg mb-6"
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.6 }}
+        />
       )}
-    </main>
+
+      {/* Course Info */}
+      <motion.div
+        className="mb-6 space-y-2 text-lg"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.6 }}
+      >
+        {course.description && <p className="text-gray-800">{course.description}</p>}
+        {course.category && <p className="font-semibold text-[#a63b3b]">Category: {course.category}</p>}
+        {course.price !== undefined && <p className="font-semibold text-[#a67c3b]">Price: ₹{course.price}</p>}
+      </motion.div>
+
+      {/* Lessons */}
+      <motion.div
+        className="mb-8"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: 0.1 } },
+        }}
+      >
+        <h2 className="text-3xl font-bold mb-4 text-[#de5252]">Course Topics</h2>
+        <ul className="space-y-4">
+          {course.lessons && course.lessons.length > 0 ? (
+            course.lessons.map((lesson, index) => (
+              <motion.li
+                key={lesson.id}
+                className="p-4 rounded-xl bg-white shadow-md hover:shadow-2xl cursor-pointer font-medium border-l-4 border-[#de5252] hover:bg-[#ffe5e5] transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ scale: 1.03 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                {index + 1}. {lesson.title}
+              </motion.li>
+            ))
+          ) : (
+            <li className="text-gray-500">No topics available.</li>
+          )}
+        </ul>
+      </motion.div>
+
+      {/* Enroll / Login Button */}
+      {user ? (
+        <motion.button
+          onClick={() => router.push(`/courses/${course.id}/lessons`)}
+          className="w-full py-5 rounded-3xl text-white font-bold bg-[#de5252] hover:bg-[#f66] shadow-xl hover:shadow-2xl transform transition-all duration-300 text-2xl"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          Enroll Now
+        </motion.button>
+      ) : (
+        <motion.button
+          onClick={() => router.push(`/login?redirect=/courses/${course.id}`)}
+          className="w-full py-5 rounded-3xl text-white font-bold bg-indigo-500 hover:bg-indigo-600 shadow-xl hover:shadow-2xl transform transition-all duration-300 text-2xl"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          Login / Sign Up
+        </motion.button>
+      )}
+    </motion.div>
   );
 }

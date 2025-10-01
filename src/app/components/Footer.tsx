@@ -22,7 +22,7 @@ export default function Footer() {
       { name: 'Customised Automation', href: '#' },
     ],
     company: [
-      { name: 'About Us', href: '#' },
+      { name: 'About Us', href: '/about-us' },
       { name: 'Our Team', href: '#' },
       { name: 'Careers', href: '#' },
       { name: 'Blog', href: '#' },
@@ -89,19 +89,19 @@ export default function Footer() {
                   <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <FaMapMarkerAlt className="text-white" />
                   </div>
-                  <span className="text-base">123 Innovation Street, Tech City</span>
+                  <span className="text-base">64/1 Anna Salai, Hakeem Nagar, Melvisharam, Ranipet 632 509</span>
                 </div>
                 <div className="flex items-center space-x-4 text-white/90">
                   <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <FaPhone className="text-white" />
                   </div>
-                  <span className="text-base">+1 (555) 123-4567</span>
+                  <span className="text-base">+91 98949 19993</span>
                 </div>
                 <div className="flex items-center space-x-4 text-white/90">
                   <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <FaMailBulk className="text-white" />
                   </div>
-                  <span className="text-base">info@maathiyosi.com</span>
+                  <span className="text-base">info@thinkinlab.com</span>
                 </div>
               </div>
             </motion.div>

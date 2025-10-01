@@ -30,16 +30,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate public URL
-    const { publicUrl, error: urlError } = supabaseAdmin.storage
+    const { data: publicUrlData } = supabaseAdmin.storage
       .from('lesson_documents')
       .getPublicUrl(fileName);
 
-    if (urlError) {
-      console.error('Supabase public URL error:', urlError);
-      return NextResponse.json({ error: urlError.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ url: publicUrl });
+    return NextResponse.json({ url: publicUrlData.publicUrl });
   } catch (err: any) {
     console.error('Upload-document API error:', err);
     return NextResponse.json({ error: err.message || 'Unknown error' }, { status: 500 });

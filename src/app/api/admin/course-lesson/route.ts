@@ -3,11 +3,11 @@ import { supabaseServer } from '../../../components/lib/supabaseServer';
 
 export async function POST(req: Request) {
   try {
-    const { title, description, category, price, thumbnail_url } = await req.json();
+    const { courseId, title, description, mux_video_id_or_url, document_url } = await req.json();
 
     const { data, error } = await supabaseServer
-      .from('courses_mux')
-      .insert([{ title, description, category, price, thumbnail_url }])
+      .from('course_lessons_mux')
+      .insert([{ course_id: courseId, title, description, mux_video_id_or_url, document_url }])
       .select()
       .single();
 

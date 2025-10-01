@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Get public URL
-      const { publicUrl } = supabase.storage.from('lesson_documents').getPublicUrl(filePath);
+      const { publicUrl } = supabase.storage.from('lesson_documents').getPublicUrl(filePath).data;
       document_url = publicUrl;
     }
 

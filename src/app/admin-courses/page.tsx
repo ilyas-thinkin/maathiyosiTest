@@ -8,13 +8,13 @@ import { motion } from "framer-motion";
 
 type Course = {
   id: string;
-  title: string;
-  description: string;
-  price: number;
-  category: string;
-  thumbnail_url: string;
-  created_at: string;
-  type: "normal" | "youtube";
+  title?: string;
+  description?: string;
+  price?: number;
+  category?: string;
+  thumbnail_url?: string;
+  created_at?: string;
+  type: "mux" | "youtube";
 };
 
 export default function AdminCoursesPage() {
@@ -29,70 +29,77 @@ export default function AdminCoursesPage() {
 
   const fetchCourses = async () => {
     setLoading(true);
+    try {
+      const { data: muxCourses, error: muxErr } = await supabase
+        .from("courses_mux")
+        .select("*");
+      const { data: ytCourses, error: ytErr } = await supabase
+        .from("courses_yt")
+        .select("*");
 
-    const [{ data: normal, error: normalErr }, { data: yt, error: ytErr }] = await Promise.all([
-      supabase.from("courses").select("*").order("created_at", { ascending: false }),
-      supabase.from("courses_yt").select("*").order("created_at", { ascending: false }),
-    ]);
+      console.log("Mux Courses Raw:", muxCourses, "Error:", muxErr);
+      console.log("YouTube Courses Raw:", ytCourses, "Error:", ytErr);
 
-    if (normalErr) console.error("Error fetching normal courses:", normalErr.message);
-    if (ytErr) console.error("Error fetching YouTube courses:", ytErr.message);
+      const allCourses: Course[] = [
+        ...(muxCourses?.map((c) => ({ ...c, type: "mux" as const })) || []),
+        ...(ytCourses?.map((c) => ({ ...c, type: "youtube" as const })) || []),
+      ];
 
-    const allCourses: Course[] = [
-      ...(normal?.map((c) => ({ ...c, type: "normal" as const })) || []),
-      ...(yt?.map((c) => ({ ...c, type: "youtube" as const })) || []),
-    ];
+      console.log("All Courses Mapped:", allCourses);
 
-    // Sort by created_at descending
-    allCourses.sort((a, b) => (a.created_at > b.created_at ? -1 : 1));
+      // Sort by created_at descending, fallback if undefined
+      allCourses.sort((a, b) => {
+        if (!a.created_at) return 1;
+        if (!b.created_at) return -1;
+        return a.created_at > b.created_at ? -1 : 1;
+      });
 
-    setCourses(allCourses);
-    setLoading(false);
+      setCourses(allCourses);
+    } catch (err) {
+      console.error("Error fetching courses:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = async (id: string, type: "normal" | "youtube") => {
-  const confirmDelete = window.confirm(
-    `Are you sure you want to delete this ${type === "youtube" ? "YouTube" : "normal"} course?`
-  );
-  if (!confirmDelete) return;
+  const handleDelete = async (id: string, type: "mux" | "youtube") => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete this ${type === "youtube" ? "YouTube" : "Mux"} course?`
+    );
+    if (!confirmDelete) return;
 
-  setDeleting(id);
+    setDeleting(id);
 
-  try {
-    if (type === "normal") {
-      // Fetch thumbnail (for deletion from storage)
-      const { data: course, error: courseError } = await supabase
-        .from("courses")
-        .select("thumbnail_url")
-        .eq("id", id)
-        .single();
-      if (courseError) throw courseError;
+    try {
+      if (type === "mux") {
+        const { data: course, error: courseError } = await supabase
+          .from("courses_mux")
+          .select("thumbnail_url")
+          .eq("id", id)
+          .single();
+        if (courseError) throw courseError;
 
-      // Delete thumbnail if exists
-      if (course?.thumbnail_url) {
-        const thumbnailPath = course.thumbnail_url.split("/storage/v1/object/public/")[1];
-        if (thumbnailPath) {
-          await supabase.storage.from("thumbnails").remove([thumbnailPath]);
+        if (course?.thumbnail_url) {
+          const thumbnailPath = course.thumbnail_url.split("/storage/v1/object/public/")[1];
+          if (thumbnailPath) {
+            await supabase.storage.from("course_thumbnails").remove([thumbnailPath]);
+          }
         }
+
+        await supabase.from("courses_mux").delete().eq("id", id);
+      } else {
+        await supabase.from("courses_yt").delete().eq("id", id);
       }
 
-      // Delete course (lessons auto-deleted by CASCADE)
-      await supabase.from("courses").delete().eq("id", id);
-    } else {
-      // Delete YouTube course (lessons auto-deleted by CASCADE)
-      await supabase.from("courses_yt").delete().eq("id", id);
+      setCourses(courses.filter((c) => c.id !== id));
+      alert("Course deleted successfully!");
+    } catch (error: any) {
+      console.error("Error during deletion:", error.message);
+      alert("Deletion failed: " + error.message);
     }
 
-    setCourses(courses.filter((c) => c.id !== id));
-    alert("Course deleted successfully!");
-  } catch (error: any) {
-    console.error("Error during deletion:", error.message);
-    alert("Deletion failed: " + error.message);
-  }
-
-  setDeleting(null);
-};
-
+    setDeleting(null);
+  };
 
   if (loading) {
     return (
@@ -122,17 +129,16 @@ export default function AdminCoursesPage() {
               <div className="relative">
                 <img
                   src={course.thumbnail_url || "/placeholder.png"}
-                  alt={course.title}
+                  alt={course.title || "No Title"}
                   className="w-full h-40 object-cover"
                 />
-                {/* ✅ Removed YouTube Tag */}
               </div>
               <div className="p-5 flex flex-col h-full">
-                <h2 className="text-lg font-semibold text-gray-900">{course.title}</h2>
-                <p className="text-sm text-gray-500">{course.category}</p>
-                <p className="text-sm text-gray-700 mt-2 line-clamp-2">{course.description}</p>
+                <h2 className="text-lg font-semibold text-gray-900">{course.title || "Untitled"}</h2>
+                <p className="text-sm text-gray-500">{course.category || "Uncategorized"}</p>
+                <p className="text-sm text-gray-700 mt-2 line-clamp-2">{course.description || "No description"}</p>
                 <p className="text-lg font-bold text-rose-600 mt-3">
-                  ₹{course.price?.toLocaleString()}
+                  ₹{course.price?.toLocaleString() || "0"}
                 </p>
                 <div className="flex justify-between items-center mt-4">
                   <button
@@ -140,7 +146,7 @@ export default function AdminCoursesPage() {
                       router.push(
                         course.type === "youtube"
                           ? `/admin-courses/edityt/${course.id}`
-                          : `/admin-courses/edit/${course.id}`
+                          : `/admin-courses/edit-mux/${course.id}`
                       )
                     }
                     className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all"
@@ -161,7 +167,7 @@ export default function AdminCoursesPage() {
         </div>
       )}
 
-      {/* ✅ Floating Buttons Container */}
+      {/* Floating Buttons */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-4">
         <button
           onClick={() => router.push("/components/admin/upload-course")}

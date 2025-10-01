@@ -1,183 +1,101 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../components/lib/supabaseClient";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
-type DbCourse = {
-  id: string | number;
-  title: string;
-  price: number;
-  thumbnail_url?: string | null;
-};
-
-type UnifiedCourse = {
+type MuxCourse = {
   id: string;
-  rawId: string | number;
   title: string;
+  description: string;
   price: number;
-  thumbnailUrl?: string | null;
+  category: string;
+  thumbnail_url: string;
+  created_at: string;
 };
 
 export default function CoursesPage() {
-  const router = useRouter();
+  const [courses, setCourses] = useState<MuxCourse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [courses, setCourses] = useState<UnifiedCourse[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const { data: normal, error: errNormal } = await supabase
-          .from("courses")
-          .select("id, title, price, thumbnail_url")
-          .order("created_at", { ascending: false } as any);
-
-        if (errNormal) throw errNormal;
-
-        const { data: yt, error: errYt } = await supabase
-          .from("courses_yt")
-          .select("id, title, price, thumbnail_url")
-          .order("created_at", { ascending: false } as any);
-
-        if (errYt) throw errYt;
-
-        const normMapped: UnifiedCourse[] =
-          (normal as DbCourse[] | null)?.map((c) => ({
-            id: `c_${c.id}`,
-            rawId: c.id,
-            title: c.title,
-            price: Number(c.price ?? 0),
-            thumbnailUrl: c.thumbnail_url ?? null,
-          })) ?? [];
-
-        const ytMapped: UnifiedCourse[] =
-          (yt as DbCourse[] | null)?.map((c) => ({
-            id: `yt_${c.id}`,
-            rawId: c.id,
-            title: c.title,
-            price: Number(c.price ?? 0),
-            thumbnailUrl: c.thumbnail_url ?? null,
-          })) ?? [];
-
-        const merged = [...normMapped, ...ytMapped];
-
-        if (!cancelled) setCourses(merged);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || "Failed to load courses");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
+    fetchCourses();
   }, []);
 
-  const skeletons = useMemo(() => new Array(6).fill(0).map((_, i) => i), []);
+  const fetchCourses = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/fetch-mux-courses");
+      const data = await res.json();
 
-  const handleClick = (id: string) => {
-    router.push(`/courses/${encodeURIComponent(id)}`);
+      if (!data || data.error) {
+        console.error("Error fetching courses:", data?.error);
+        setCourses([]);
+      } else {
+        setCourses(data);
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setCourses([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
-    <main className="mx-auto max-w-7xl px-4 py-12">
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-red-600 to-red-400 text-transparent bg-clip-text">
-          Explore Our Courses
-        </h1>
-        <p className="mt-3 text-zinc-600 text-lg">
-          Learn, grow, and unlock your potential 🚀
-        </p>
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-14 w-14 border-4 border-indigo-500 border-t-transparent"></div>
       </div>
+    );
+  }
 
-      {error && (
-        <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 text-red-800 shadow-sm">
-          {error}
-        </div>
-      )}
+  return (
+    <div className="max-w-7xl mx-auto p-6">
+      <h1 className="text-4xl font-extrabold text-indigo-600 mb-8 text-center">
+        📚 Available Courses
+      </h1>
 
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {skeletons.map((i) => (
-            <div
-              key={i}
-              className="animate-pulse rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-sm"
-            >
-              <div className="aspect-video bg-zinc-100" />
-              <div className="p-4 space-y-3">
-                <div className="h-5 bg-zinc-200 rounded w-3/4" />
-                <div className="h-5 bg-zinc-200 rounded w-1/2" />
-                <div className="h-8 bg-red-100 rounded w-24" />
-              </div>
-            </div>
-          ))}
-        </div>
+      {courses.length === 0 ? (
+        <p className="text-center text-gray-400">No courses available.</p>
       ) : (
-        <motion.div
-          layout
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
-        >
-          {courses.map((course) => (
-            <motion.div
-              key={course.id}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handleClick(course.id)}
-              className="cursor-pointer rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-md hover:shadow-xl transition-all duration-300 group flex flex-col"
-            >
-              {/* Thumbnail */}
-              <div className="relative aspect-video overflow-hidden">
-                <img
-                  src={course.thumbnailUrl || "/default-thumb.jpg"}
-                  alt={course.title}
-                  className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-              </div>
-
-              {/* Content */}
-              <div className="flex flex-col flex-grow p-5">
-                <h3 className="text-lg font-semibold text-zinc-900 group-hover:text-red-600 transition-colors duration-300">
-                  {course.title}
-                </h3>
-                <p className="mt-2 text-sm text-zinc-500 flex-grow">
-                  Tap to explore and enroll instantly.
-                </p>
-
-                {/* Bottom section with price + button */}
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-lg font-bold text-red-600">
-                    ₹{course.price}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // prevent card click firing
-                      handleClick(course.id);
-                    }}
-                    className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium shadow-md hover:bg-red-700 transition-colors"
-                  >
-                    Enroll Now
-                  </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <AnimatePresence>
+            {courses.map((course, index) => (
+              <motion.div
+                key={course.id}
+                initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.7 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                onClick={() => router.push(`/courses/${course.id}`)} // Navigate to course details page
+                className="cursor-pointer bg-gradient-to-br from-white to-indigo-50 rounded-3xl shadow-xl overflow-hidden hover:scale-105 hover:shadow-2xl transition-transform duration-300 relative"
+              >
+                <div className="relative h-48 overflow-hidden rounded-t-3xl">
+                  <img
+                    src={course.thumbnail_url || "/placeholder.png"}
+                    alt={course.title}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-              </div>
-            </motion.div>
-          ))}
-
-          {courses.length === 0 && !error && (
-            <div className="col-span-full rounded-2xl border border-zinc-200 p-8 text-center text-zinc-600">
-              No courses available right now.
-            </div>
-          )}
-        </motion.div>
+                <div className="p-5">
+                  <h2 className="text-xl font-bold text-indigo-800 line-clamp-1">
+                    {course.title}
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">{course.category}</p>
+                  <p className="text-gray-700 mt-2 line-clamp-3">
+                    {course.description}
+                  </p>
+                  <p className="text-lg font-semibold text-purple-600 mt-3">
+                    ₹{course.price?.toLocaleString() || "0"}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
       )}
-    </main>
+    </div>
   );
 }
