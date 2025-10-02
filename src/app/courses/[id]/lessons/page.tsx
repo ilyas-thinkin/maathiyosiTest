@@ -16,6 +16,7 @@ type Lesson = {
   video_url?: string;
   mux_video_id?: string;
   document_url?: string;
+  lesson_order?: number; // Add lesson_order field
 };
 
 type Course = {
@@ -40,6 +41,16 @@ export default function CourseLessonsPage() {
       try {
         const res = await fetch(`/api/admin/fetch-mux-details-course?id=${params.id}`);
         const data = await res.json();
+        
+        // Sort lessons by lesson_order if it exists
+        if (data.lessons && Array.isArray(data.lessons)) {
+          data.lessons.sort((a: Lesson, b: Lesson) => {
+            const orderA = a.lesson_order ?? 999;
+            const orderB = b.lesson_order ?? 999;
+            return orderA - orderB;
+          });
+        }
+        
         setCourse(data.error ? null : data);
       } catch (err) {
         console.error(err);
@@ -148,11 +159,22 @@ export default function CourseLessonsPage() {
                                 Hide Document
                               </button>
                             </div>
-                            <iframe
-                              src={lesson.document_url || ""}
-                              className="w-full h-[400px] border rounded-lg shadow-md"
-                              title={`Document for ${lesson.title}`}
-                            />
+                            {/* Check if document is an image or gif */}
+                            {lesson.document_url && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(lesson.document_url) ? (
+                              <div className="w-full h-[400px] border rounded-lg shadow-md overflow-hidden flex items-center justify-center bg-gray-50">
+                                <img
+                                  src={lesson.document_url}
+                                  alt={`Document for ${lesson.title}`}
+                                  className="max-w-full max-h-full object-contain"
+                                />
+                              </div>
+                            ) : (
+                              <iframe
+                                src={lesson.document_url || ""}
+                                className="w-full h-[400px] border rounded-lg shadow-md"
+                                title={`Document for ${lesson.title}`}
+                              />
+                            )}
                           </>
                         )}
                       </motion.div>

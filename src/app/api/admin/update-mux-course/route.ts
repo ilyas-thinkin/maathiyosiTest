@@ -7,11 +7,12 @@ const supabaseServer = createClient(
 );
 
 type LessonInput = {
-  id?: string; // existing lesson id or undefined for new lessons
+  id?: string;
   title: string;
   description?: string;
-  video_url?: string;
+  mux_video_id?: string;
   document_url?: string;
+  lesson_order?: number;
 };
 
 export async function POST(req: Request) {
@@ -57,14 +58,19 @@ export async function POST(req: Request) {
     const lessonsToInsert: LessonInput[] = [];
     const sentLessonIds: string[] = [];
 
-    for (const l of lessons) {
+    lessons.forEach((l: LessonInput, index: number) => {
+      // Ensure lesson_order is set from the array index if not provided
+      if (l.lesson_order === undefined) {
+        l.lesson_order = index;
+      }
+      
       if (l.id && existingLessonIds.includes(l.id)) {
         lessonsToUpdate.push(l);
         sentLessonIds.push(l.id);
       } else {
         lessonsToInsert.push(l);
       }
-    }
+    });
 
     // 4️⃣ Delete removed lessons
     const lessonsToDelete = existingLessonIds.filter((id) => !sentLessonIds.includes(id));
@@ -83,11 +89,15 @@ export async function POST(req: Request) {
         .update({
           title: l.title,
           description: l.description ?? null,
-          mux_video_id: l.video_url ?? null,
+          mux_video_id: l.mux_video_id ?? null,
           document_url: l.document_url ?? null,
+          lesson_order: l.lesson_order ?? 0,
         })
         .eq("id", l.id);
-      if (updateError) console.error("Update lesson error:", updateError);
+      if (updateError) {
+        console.error("Update lesson error:", updateError);
+        return NextResponse.json({ error: `Failed to update lesson ${l.id}` }, { status: 500 });
+      }
     }
 
     // 6️⃣ Insert new lessons
@@ -96,15 +106,19 @@ export async function POST(req: Request) {
         course_id: courseId,
         title: l.title,
         description: l.description ?? null,
-        mux_video_id: l.video_url ?? null,
+        mux_video_id: l.mux_video_id ?? null,
         document_url: l.document_url ?? null,
+        lesson_order: l.lesson_order ?? 0,
       }));
 
       const { error: insertError } = await supabaseServer
         .from("course_lessons_mux")
         .insert(insertRows);
 
-      if (insertError) console.error("Insert new lessons error:", insertError);
+      if (insertError) {
+        console.error("Insert new lessons error:", insertError);
+        return NextResponse.json({ error: "Failed to insert new lessons" }, { status: 500 });
+      }
     }
 
     return NextResponse.json({ message: "Course and lessons updated successfully" });

@@ -137,7 +137,7 @@ export default function AdminPage() {
       )}
 
       <button
-        onClick={() => router.push("/components/admin/upload-course")}
+        onClick={() => router.push("/components/courseuploader")}
         className="fixed bottom-6 right-6 flex items-center gap-2 px-5 py-3 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-700 transition-all"
       >
         <FiPlus className="text-xl" /> Add New Mux Course

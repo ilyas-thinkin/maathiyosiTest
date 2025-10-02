@@ -125,60 +125,91 @@ export default function CourseUploader() {
 
   /** Submit form */
   const handleSubmit = async () => {
-    setUploading(true);
+  if (!courseTitle.trim()) {
+    alert("Course title is required");
+    return;
+  }
 
-    try {
-      const finalThumbnailUrl = await uploadThumbnail();
+  setUploading(true);
 
-      const lessonsData = [];
-      for (const lesson of lessons) {
-        const playbackUrl = lesson.videoFile
-          ? await uploadLessonVideo(lesson.videoFile)
-          : "";
-
-        const documentUrl = lesson.docFile
-          ? await uploadLessonDocument(lesson.docFile, lesson.title)
-          : "";
-
-        lessonsData.push({
-          title: lesson.title,
-          description: lesson.description,
-          mux_video_id: playbackUrl,
-          document_url: documentUrl,
-        });
-      }
-
-      console.log("Final payload to save-course:", {
-        title: courseTitle,
-        description: courseDesc,
-        category,
-        price,
-        thumbnail_url: finalThumbnailUrl,
-        lessons: lessonsData,
-      });
-
-      const res = await fetch("/api/save-course", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: courseTitle,
-          description: courseDesc,
-          category,
-          price,
-          thumbnail_url: finalThumbnailUrl,
-          lessons: lessonsData,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Failed to save course");
-
-      alert("Course uploaded successfully!");
-    } catch (err: any) {
-      alert(`Upload failed: ${err.message}`);
+  try {
+    // 1️⃣ Upload course thumbnail
+    let finalThumbnailUrl = "";
+    if (thumbnail) {
+      finalThumbnailUrl = await uploadThumbnail();
     }
 
+    // 2️⃣ Upload lessons (video + document) and preserve order
+    const lessonsData = [];
+    for (let i = 0; i < lessons.length; i++) {
+      const lesson = lessons[i];
+
+      // Upload video if selected
+      const playbackUrl = lesson.videoFile
+        ? await uploadLessonVideo(lesson.videoFile)
+        : "";
+
+      // Upload document if selected
+      const documentUrl = lesson.docFile
+        ? await uploadLessonDocument(lesson.docFile, lesson.title)
+        : "";
+
+      lessonsData.push({
+        title: lesson.title,
+        description: lesson.description,
+        mux_video_id: playbackUrl,
+        document_url: documentUrl,
+        lesson_order: i, // preserve order from drag-and-drop
+      });
+    }
+
+    // 3️⃣ Prepare payload
+    const payload = {
+      title: courseTitle,
+      description: courseDesc,
+      category,
+      price,
+      thumbnail_url: finalThumbnailUrl,
+      lessons: lessonsData,
+    };
+
+    console.log("Uploading course payload:", payload);
+
+    // Send to save-course API
+const res = await fetch("/api/save-course", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    title: courseTitle,
+    description: courseDesc,
+    category,
+    price,
+    thumbnail_url: finalThumbnailUrl,
+    lessons: lessonsData,
+  }),
+});
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Failed to save course");
+    }
+
+    alert("Course uploaded successfully!");
+    // Optional: Reset form or redirect
+    setCourseTitle("");
+    setCourseDesc("");
+    setCategory("");
+    setPrice("");
+    setThumbnail(null);
+    setThumbnailUrl("");
+    setLessons([]);
+  } catch (err: any) {
+    console.error("Course upload failed:", err);
+    alert(`Upload failed: ${err.message}`);
+  } finally {
     setUploading(false);
-  };
+  }
+};
+
 
   return (
     <div className="max-w-5xl mx-auto p-8 bg-gray-50 rounded-lg shadow-lg">

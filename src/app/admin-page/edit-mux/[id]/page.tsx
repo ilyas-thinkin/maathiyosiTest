@@ -112,12 +112,48 @@ export default function EditCoursePage() {
     }
   };
 
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
+
     const reordered = Array.from(lessons);
     const [removed] = reordered.splice(result.source.index, 1);
     reordered.splice(result.destination.index, 0, removed);
+
+    // Update local state immediately for UI responsiveness
     setLessons(reordered);
+
+    // Persist order changes to database
+    try {
+      const updates = reordered
+        .filter(lesson => lesson.id) // Only update lessons that have IDs
+        .map((lesson, index) => ({
+          id: lesson.id!,
+          lesson_order: index,
+        }));
+
+      console.log("Sending lesson order updates:", updates);
+
+      const res = await fetch("/api/admin/update-lesson-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lessons: updates }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        console.error("Failed to update order:", data.error);
+        alert("Failed to save lesson order. Please try again.");
+        // Revert to original order on failure
+        fetchCourse();
+      } else {
+        console.log("Lesson order updated successfully");
+      }
+    } catch (err) {
+      console.error("Error updating order:", err);
+      alert("Error saving lesson order. Please try again.");
+      // Revert to original order on failure
+      fetchCourse();
+    }
   };
 
   /** Extract Mux playback ID from URL */
@@ -223,40 +259,51 @@ export default function EditCoursePage() {
   const handleSubmit = async () => {
     if (!course) return;
     setUploading(true);
+
     try {
+      // 1️⃣ Upload thumbnail if changed
       const finalThumbnailUrl = await uploadThumbnail();
+
+      // 2️⃣ Prepare all lessons with video/document uploads and order
       const updatedLessons: any[] = [];
 
-      // existing lessons
-      for (const lesson of lessons) {
+      // Existing lessons
+      for (let i = 0; i < lessons.length; i++) {
+        const lesson = lessons[i];
         const oldVideoUrl = lesson.video_url || lesson.mux_video_id || "";
-        const videoUrl = lesson.newVideoFile 
-          ? await uploadLessonVideo(lesson.newVideoFile, oldVideoUrl) 
+        const videoUrl = lesson.newVideoFile
+          ? await uploadLessonVideo(lesson.newVideoFile, oldVideoUrl)
           : oldVideoUrl;
-        const docUrl = lesson.newDocumentFile 
-          ? await uploadLessonDocument(lesson.newDocumentFile) 
+        const docUrl = lesson.newDocumentFile
+          ? await uploadLessonDocument(lesson.newDocumentFile)
           : lesson.document_url || "";
+
         updatedLessons.push({
           id: lesson.id,
           title: lesson.title,
           description: lesson.description,
-          video_url: videoUrl,
+          mux_video_id: videoUrl,
           document_url: docUrl,
+          lesson_order: i,
         });
       }
 
-      // new lessons
-      for (const lesson of newLessons) {
+      // New lessons
+      for (let i = 0; i < newLessons.length; i++) {
+        const lesson = newLessons[i];
         const videoUrl = lesson.newVideoFile ? await uploadLessonVideo(lesson.newVideoFile) : "";
         const docUrl = lesson.newDocumentFile ? await uploadLessonDocument(lesson.newDocumentFile) : "";
+
         updatedLessons.push({
           title: lesson.title,
           description: lesson.description,
-          video_url: videoUrl,
+          mux_video_id: videoUrl,
           document_url: docUrl,
+          lesson_order: lessons.length + i,
         });
       }
 
+      // 3️⃣ Prepare payload
       const payload = {
         id: course.id,
         title: course.title,
@@ -267,6 +314,7 @@ export default function EditCoursePage() {
         lessons: updatedLessons,
       };
 
+      // 4️⃣ Send to update course API
       const res = await fetch("/api/admin/update-mux-course", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -13,6 +13,7 @@ type LessonInput = {
   mux_video_id?: string | null;
   document_url?: string | null;
   duration?: number | null;
+  lesson_order: number; // <-- new field
 };
 
 export async function POST(req: Request) {
@@ -49,13 +50,14 @@ export async function POST(req: Request) {
 
     // Insert lessons in bulk (if any)
     if (Array.isArray(lessons) && lessons.length > 0) {
-      const lessonRows = lessons.map((l: LessonInput) => ({
+      const lessonRows = lessons.map((l: LessonInput, index: number) => ({
         course_id: courseId,
         title: l.title,
         description: l.description ?? null,
         duration: l.duration ?? null,
         mux_video_id: l.mux_video_id ?? null,
         document_url: l.document_url ?? null,
+        lesson_order: index + 1, // <-- save order based on array index
       }));
 
       const { error: lessonsError } = await supabaseServer

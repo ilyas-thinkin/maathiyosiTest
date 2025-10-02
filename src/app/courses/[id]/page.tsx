@@ -10,6 +10,7 @@ type Lesson = {
   id: string;
   title: string;
   video_url?: string;
+  lesson_order?: number; // Add lesson_order field
 };
 
 type Course = {
@@ -39,6 +40,16 @@ export default function CourseDetailsPage() {
       try {
         const res = await fetch(`/api/admin/fetch-mux-details-course?id=${params.id}`);
         const data = await res.json();
+        
+        // Sort lessons by lesson_order if it exists
+        if (data.lessons && Array.isArray(data.lessons)) {
+          data.lessons.sort((a: Lesson, b: Lesson) => {
+            const orderA = a.lesson_order ?? 999;
+            const orderB = b.lesson_order ?? 999;
+            return orderA - orderB;
+          });
+        }
+        
         setCourse(data.error ? null : data);
       } catch (err) {
         console.error(err);
