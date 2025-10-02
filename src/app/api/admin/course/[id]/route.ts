@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseServer = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Move client creation inside the function to avoid build-time issues
+function getSupabaseServer() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
-// Correct type for Next.js 13+ App Router
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
@@ -16,12 +18,13 @@ export async function GET(
   context: RouteContext
 ) {
   try {
-    // Await the params
     const { id } = await context.params;
 
     if (!id) {
       return NextResponse.json({ error: "Course ID is required" }, { status: 400 });
     }
+
+    const supabaseServer = getSupabaseServer();
 
     const { data: course, error: courseError } = await supabaseServer
       .from("courses_mux")
