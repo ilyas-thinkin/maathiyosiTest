@@ -6,9 +6,12 @@ const supabaseServer = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  req: Request,
+  context: { params: { id: string } } // ✅ correct typing
+) {
   try {
-    const id = params.id; // ✅ take from URL segment /api/admin/course/[id]
+    const id = context.params.id; // ✅ extract from path segment
 
     if (!id) {
       return NextResponse.json({ error: "Course ID is required" }, { status: 400 });
@@ -29,7 +32,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
-    // Fetch the lessons for this course
+    // Fetch lessons
     const { data: lessons, error: lessonsError } = await supabaseServer
       .from("course_lessons_mux")
       .select("*")
@@ -40,7 +43,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: lessonsError.message }, { status: 500 });
     }
 
-    // Return course + lessons
     return NextResponse.json({ ...course, lessons });
   } catch (err: any) {
     console.error("fetch-mux-edit-course API error:", err);
