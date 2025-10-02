@@ -6,10 +6,9 @@ const supabaseServer = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(req: Request) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
+    const id = params.id; // ✅ take from URL segment /api/admin/course/[id]
 
     if (!id) {
       return NextResponse.json({ error: "Course ID is required" }, { status: 400 });
@@ -35,7 +34,7 @@ export async function GET(req: Request) {
       .from("course_lessons_mux")
       .select("*")
       .eq("course_id", id)
-      .order("id", { ascending: true }); // optional ordering
+      .order("id", { ascending: true });
 
     if (lessonsError) {
       return NextResponse.json({ error: lessonsError.message }, { status: 500 });
