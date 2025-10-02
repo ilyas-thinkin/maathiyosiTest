@@ -6,11 +6,18 @@ const supabaseServer = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-type Params = { params: { id: string } };
+// Correct type for Next.js 13+ App Router
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
 
-export async function GET(req: Request, { params }: Params) {
+export async function GET(
+  req: Request,
+  context: RouteContext
+) {
   try {
-    const id = params.id;
+    // Await the params
+    const { id } = await context.params;
 
     if (!id) {
       return NextResponse.json({ error: "Course ID is required" }, { status: 400 });
