@@ -6,18 +6,16 @@ const supabaseServer = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(
-  req: Request,
-  context: { params: { id: string } } // ✅ correct typing
-) {
+type Params = { params: { id: string } };
+
+export async function GET(req: Request, { params }: Params) {
   try {
-    const id = context.params.id; // ✅ extract from path segment
+    const id = params.id;
 
     if (!id) {
       return NextResponse.json({ error: "Course ID is required" }, { status: 400 });
     }
 
-    // Fetch the course
     const { data: course, error: courseError } = await supabaseServer
       .from("courses_mux")
       .select("*")
@@ -32,7 +30,6 @@ export async function GET(
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
-    // Fetch lessons
     const { data: lessons, error: lessonsError } = await supabaseServer
       .from("course_lessons_mux")
       .select("*")
