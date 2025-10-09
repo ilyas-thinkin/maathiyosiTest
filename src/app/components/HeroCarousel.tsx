@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Play, Sparkles, BookOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpen, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../components/lib/supabaseClient';
@@ -13,7 +13,6 @@ type Slide = {
   subheading: string;
   button_text: string;
   linked_course_id: string | null;
-  linked_course_source: string | null;
 };
 
 export default function HeroCarousel() {
@@ -34,15 +33,22 @@ export default function HeroCarousel() {
   }, [slides]);
 
   const fetchHeroSlides = async () => {
-    const { data, error } = await supabase
-      .from('hero_slides')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('hero_slides')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching hero slides:', error.message);
-    } else {
-      setSlides(data as Slide[]);
+      if (error) throw error;
+
+      // Filter slides to only those linking to Mux courses
+      const muxSlides = (data as Slide[]).filter(
+        (slide) => slide.linked_course_id
+      );
+
+      setSlides(muxSlides);
+    } catch (err: any) {
+      console.error('Error fetching hero slides:', err.message);
     }
   };
 
@@ -50,22 +56,13 @@ export default function HeroCarousel() {
   const prevSlide = () =>
     setIndex((prev) => (prev - 1 + slides.length) % slides.length);
 
-  if (slides.length === 0) {
-    return null; // Loading or placeholder
-  }
+  if (slides.length === 0) return null;
 
-  const { heading, subheading, image_url, button_text, linked_course_id, linked_course_source } =
+  const { heading, subheading, image_url, button_text, linked_course_id } =
     slides[index];
 
-  // Generate course link
-  const courseHref = linked_course_source && linked_course_id
-    ? linked_course_source === 'yt'
-      ? `/courses/yt_${linked_course_id}`
-      : `/courses/${linked_course_id}`
-    : null;
-
+  const courseHref = linked_course_id ? `/courses/${linked_course_id}` : '/courses';
   const primaryButtonText = button_text || 'Start Learning';
-  const primaryButtonHref = courseHref || '/courses';
 
   return (
     <section className="relative w-full mx-auto max-w-screen-2xl overflow-hidden">
@@ -85,10 +82,7 @@ export default function HeroCarousel() {
           >
             {/* Desktop Grid */}
             <div className="hidden lg:grid lg:grid-cols-12 gap-12 items-center">
-              
-              {/* Left - Text Content */}
               <div className="lg:col-span-6 space-y-8">
-                {/* Tag */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -99,22 +93,19 @@ export default function HeroCarousel() {
                   <span className="text-sm font-medium text-blue-700">Featured Course</span>
                 </motion.div>
 
-                {/* Heading */}
                 <h1 className="text-4xl md:text-5xl font-bold leading-tight bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
                   {heading}
                 </h1>
 
-                {/* Subheading */}
                 <p className="text-lg text-gray-600 max-w-xl leading-relaxed">
                   {subheading}
                 </p>
 
-                {/* Buttons */}
                 <div className="flex flex-wrap gap-4 pt-4">
                   <motion.a
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    href={primaryButtonHref}
+                    href={courseHref}
                     className="inline-flex items-center px-8 py-4 text-base font-semibold text-white bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl shadow-lg hover:shadow-xl hover:from-indigo-700 hover:to-blue-700 transition-all duration-300"
                   >
                     <BookOpen className="mr-2 h-5 w-5" />
@@ -133,45 +124,30 @@ export default function HeroCarousel() {
                 </div>
               </div>
 
-              {/* Right - Image */}
               <div className="lg:col-span-6 flex justify-center relative">
-                <motion.div
-                  key={image_url || 'placeholder'}
-                  initial={{ opacity: 0, x: 50, scale: 0.9 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: -50, scale: 0.9 }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
-                  className="relative"
-                >
-                  {image_url ? (
-                    <Image
-                      src={image_url}
-                      alt={heading}
-                      width={600}
-                      height={600}
-                      className="rounded-3xl object-contain drop-shadow-2xl"
-                      priority
-                    />
-                  ) : (
-                    <div className="w-[600px] h-[600px] bg-gray-200 flex items-center justify-center text-gray-500 rounded-3xl">
-                      No Image
-                    </div>
-                  )}
-                </motion.div>
+                {image_url ? (
+                  <Image
+                    src={image_url}
+                    alt={heading}
+                    width={600}
+                    height={600}
+                    className="rounded-3xl object-contain drop-shadow-2xl"
+                    priority
+                  />
+                ) : (
+                  <div className="w-[600px] h-[600px] bg-gray-200 flex items-center justify-center text-gray-500 rounded-3xl">
+                    No Image
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Mobile Layout */}
             <div className="lg:hidden flex flex-col items-center text-center space-y-6">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2, duration: 0.4 }}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-full"
-              >
+              <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-full">
                 <Sparkles className="w-4 h-4 text-blue-600 mr-2" />
                 <span className="text-sm font-medium text-blue-700">Featured Course</span>
-              </motion.div>
+              </div>
 
               <h1 className="text-3xl font-bold leading-tight bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
                 {heading}
@@ -181,7 +157,6 @@ export default function HeroCarousel() {
                 {subheading}
               </p>
 
-              {/* Mobile Image */}
               {image_url ? (
                 <Image
                   src={image_url}
@@ -197,15 +172,11 @@ export default function HeroCarousel() {
                 </div>
               )}
 
-              {/* Mobile Buttons */}
               <div className="flex flex-col gap-4 w-full max-w-sm">
                 <motion.a
-                  whileHover={{
-                    scale: 1.05,
-                    boxShadow: "0 20px 25px -5px rgba(79, 70, 229, 0.3)"
-                  }}
+                  whileHover={{ scale: 1.05, boxShadow: "0 20px 25px -5px rgba(79, 70, 229, 0.3)" }}
                   whileTap={{ scale: 0.95 }}
-                  href={primaryButtonHref}
+                  href={courseHref}
                   className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-white bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   <BookOpen className="mr-2 h-5 w-5" />
@@ -213,10 +184,7 @@ export default function HeroCarousel() {
                 </motion.a>
 
                 <motion.a
-                  whileHover={{
-                    scale: 1.05,
-                    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.05)"
-                  }}
+                  whileHover={{ scale: 1.05, boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.05)" }}
                   whileTap={{ scale: 0.95 }}
                   href="/courses"
                   className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold bg-white text-gray-700 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:bg-gray-50 transition-all duration-300"
@@ -230,7 +198,6 @@ export default function HeroCarousel() {
         </AnimatePresence>
       </div>
 
-      {/* Navigation Buttons */}
       {slides.length > 1 && (
         <>
           <motion.button
@@ -253,7 +220,6 @@ export default function HeroCarousel() {
         </>
       )}
 
-      {/* Progress Indicators */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-2 z-20">
         {slides.map((_, idx) => (
           <motion.button
@@ -261,9 +227,7 @@ export default function HeroCarousel() {
             onClick={() => setIndex(idx)}
             whileHover={{ scale: 1.2 }}
             className={`h-2 rounded-full transition-all duration-300 ${
-              idx === index
-                ? 'w-6 bg-indigo-600'
-                : 'w-2 bg-gray-300'
+              idx === index ? 'w-6 bg-indigo-600' : 'w-2 bg-gray-300'
             }`}
           />
         ))}

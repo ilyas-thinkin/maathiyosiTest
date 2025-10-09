@@ -1,6 +1,6 @@
 // src/components/HeroSection.tsx
 
-import HeroCarousel from './HeroCarousel';
+import HeroCarousel from './HeroCarousel1 copy';
 
 export default function HeroSection() {
   return (

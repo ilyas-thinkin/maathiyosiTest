@@ -4,13 +4,7 @@ import { useEffect, useState, ChangeEvent } from "react";
 import { supabase } from "../../components/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  PlusCircle,
-  Trash2,
-  Image as ImageIcon,
-  Save,
-  Loader2,
-} from "lucide-react";
+import { PlusCircle, Trash2, Image as ImageIcon, Save, Loader2 } from "lucide-react";
 
 /* ────────────── TYPES ────────────── */
 interface HeroSlide {
@@ -25,9 +19,9 @@ interface HeroSlide {
 interface Course {
   id: string;
   title: string;
-  source: "main" | "yt";
 }
 
+/* ────────────── COMPONENT ────────────── */
 export default function EditHeroSlides() {
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -40,79 +34,62 @@ export default function EditHeroSlides() {
 
   /* ────────────── AUTH CHECK ────────────── */
   useEffect(() => {
-  const checkAdmin = async () => {
-    // 1. Get current session
-    const { data: { session } } = await supabase.auth.getSession();
+    const checkAdmin = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return router.push("/login");
 
-    if (!session) {
-      router.push("/login"); // redirect if not logged in
-      return;
-    }
+      const { data: userData, error } = await supabase
+        .from("users")
+        .select("role, is_admin")
+        .eq("id", session.user.id)
+        .single();
 
-    // 2. Fetch from "users" table using session user id
-    const { data: userData, error } = await supabase
-      .from("users")
-      .select("role, is_admin")
-      .eq("id", session.user.id)
-      .single();
+      if (error || !userData || userData.role !== "admin" || !userData.is_admin) {
+        return router.push("/not-authorized");
+      }
 
-    // 3. Check if admin
-    if (error || !userData || userData.role !== "admin" || userData.is_admin !== true) {
-      router.push("/not-authorized"); // redirect if not admin
-      return;
-    }
+      setIsAdmin(true);
+      setLoading(false);
+    };
+    checkAdmin();
+  }, [router]);
 
-    // ✅ User is admin
-    setIsAdmin(true);
-    setLoading(false);
-  };
-
-  checkAdmin();
-}, [router]);
-
-
-  /* ────────────── FETCH SLIDES AND COURSES ────────────── */
+  /* ────────────── FETCH SLIDES & MUX COURSES ONLY ────────────── */
   useEffect(() => {
     if (!isAdmin) return;
 
     (async () => {
-      const [slidesRes, mainRes, ytRes] = await Promise.all([
-        supabase.from("hero_slides").select("*").order("created_at", { ascending: true }),
-        supabase.from("courses").select("id, title").order("title"),
-        supabase.from("courses_yt").select("id, title").order("title"),
-      ]);
+      const slidesRes = await supabase
+        .from("hero_slides")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      const coursesRes = await supabase
+        .from("courses") // Only Mux courses
+        .select("id, title")
+        .order("title");
 
       if (!slidesRes.error && slidesRes.data) {
-        setSlides(
-          slidesRes.data.map((s: any) => ({
-            ...s,
-            linked_course_id:
-              s.linked_course_source && s.linked_course_id
-                ? `${s.linked_course_source}:${s.linked_course_id}`
-                : null,
-          }))
-        );
+        setSlides(slidesRes.data.map((s: any) => ({
+          ...s,
+          linked_course_id: s.linked_course_id || null
+        })));
       }
 
-      const merged: Course[] = [];
-      if (!mainRes.error && mainRes.data) {
-        merged.push(...mainRes.data.map((c) => ({ ...c, source: "main" as const })));
+      if (!coursesRes.error && coursesRes.data) {
+        setCourses(coursesRes.data);
       }
-      if (!ytRes.error && ytRes.data) {
-        merged.push(...ytRes.data.map((c) => ({ ...c, source: "yt" as const })));
-      }
-      setCourses(merged);
     })();
   }, [isAdmin]);
 
   /* ────────────── HELPERS ────────────── */
   const updateSlide = (id: string, upd: Partial<HeroSlide>) => {
-    setSlides((prev) => prev.map((s) => (s.id === id ? { ...s, ...upd } : s)));
+    setSlides(prev => prev.map(s => s.id === id ? { ...s, ...upd } : s));
   };
 
   const addSlide = () => {
     if (slides.length >= 7) return alert("Max 7 slides allowed.");
-    setSlides((prev) => [
+    setSlides(prev => [
       ...prev,
       {
         id: crypto.randomUUID(),
@@ -126,12 +103,11 @@ export default function EditHeroSlides() {
   };
 
   const deleteSlide = async (id: string) => {
-    if (confirm("Are you sure you want to delete this slide?")) {
-      if (/^[0-9a-f\-]{36}$/i.test(id)) {
-        await supabase.from("hero_slides").delete().eq("id", id);
-      }
-      setSlides((prev) => prev.filter((s) => s.id !== id));
+    if (!confirm("Are you sure you want to delete this slide?")) return;
+    if (/^[0-9a-f\-]{36}$/i.test(id)) {
+      await supabase.from("hero_slides").delete().eq("id", id);
     }
+    setSlides(prev => prev.filter(s => s.id !== id));
   };
 
   const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>, id: string) => {
@@ -155,56 +131,37 @@ export default function EditHeroSlides() {
     setUploading(null);
   };
 
-  /* ────────────── SAVE TO SUPABASE ────────────── */
   const saveAll = async () => {
     setSaving(true);
-
-    const payload = slides.map((s) => {
-      let courseSource: string | null = null;
-      let courseId: string | null = null;
-
-      if (s.linked_course_id?.includes(":")) {
-        const [src, id] = s.linked_course_id.split(":");
-        courseSource = src;
-        courseId = id;
-      }
-
-      return {
-        id: /^[0-9a-f\-]{36}$/i.test(s.id) ? s.id : undefined,
-        image_url: s.image_url || null,
-        heading: s.heading || null,
-        subheading: s.subheading || null,
-        button_text: s.button_text || null,
-        linked_course_source: courseSource,
-        linked_course_id: courseId,
-      };
-    });
+    const payload = slides.map(s => ({
+      id: /^[0-9a-f\-]{36}$/i.test(s.id) ? s.id : undefined,
+      image_url: s.image_url || null,
+      heading: s.heading || null,
+      subheading: s.subheading || null,
+      button_text: s.button_text || null,
+      linked_course_id: s.linked_course_id || null,
+      linked_course_source: "main",
+    }));
 
     const { error } = await supabase.from("hero_slides").upsert(payload, { onConflict: "id" });
-
     setSaving(false);
-    if (error) return alert("Save failed: " + error.message);
 
+    if (error) return alert("Save failed: " + error.message);
     alert("Slides saved successfully!");
     router.push("/admin-courses");
   };
 
-  /* ────────────── LOADING / UNAUTHORIZED ────────────── */
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="animate-spin text-rose-600" size={32} />
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex items-center justify-center h-screen">
+      <Loader2 className="animate-spin text-rose-600" size={32} />
+    </div>
+  );
 
-  if (!isAdmin) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-xl text-red-500">🚫 You are not authorized to view this page.</p>
-      </div>
-    );
-  }
+  if (!isAdmin) return (
+    <div className="flex items-center justify-center h-screen">
+      <p className="text-xl text-red-500">🚫 You are not authorized to view this page.</p>
+    </div>
+  );
 
   /* ────────────── UI ────────────── */
   return (
@@ -226,7 +183,6 @@ export default function EditHeroSlides() {
             exit={{ opacity: 0, y: -20 }}
             className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-4 relative"
           >
-            {/* Delete button */}
             <button
               onClick={() => deleteSlide(s.id)}
               className="absolute top-4 right-4 text-red-500 hover:text-red-600"
@@ -290,9 +246,7 @@ export default function EditHeroSlides() {
               >
                 <option value="">No Link</option>
                 {courses.map((c) => (
-                  <option key={`${c.source}-${c.id}`} value={`${c.source}:${c.id}`}>
-                    {c.source === "yt" ? `[YT] ${c.title}` : c.title}
-                  </option>
+                  <option key={c.id} value={c.id}>{c.title}</option>
                 ))}
               </select>
             </div>
@@ -300,7 +254,7 @@ export default function EditHeroSlides() {
         ))}
       </AnimatePresence>
 
-      {/* Add Slide Button */}
+      {/* Add Slide */}
       {slides.length < 7 && (
         <motion.button
           whileHover={{ scale: 1.03 }}
@@ -313,7 +267,7 @@ export default function EditHeroSlides() {
         </motion.button>
       )}
 
-      {/* Save Button */}
+      {/* Save All */}
       <motion.button
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}

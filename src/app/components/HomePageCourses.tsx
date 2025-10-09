@@ -1,16 +1,8 @@
-"use client";
+'use client';
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../components/lib/supabaseClient";
 import { motion } from "framer-motion";
-
-type DbCourse = {
-  id: string | number;
-  title: string;
-  price: number;
-  thumbnail_url?: string | null;
-};
 
 type UnifiedCourse = {
   id: string;
@@ -19,7 +11,6 @@ type UnifiedCourse = {
   price: number;
   thumbnailUrl?: string | null;
 };
-
 
 export default function HomePageCourses() {
   const router = useRouter();
@@ -30,48 +21,30 @@ export default function HomePageCourses() {
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    async function loadCourses() {
       try {
         setLoading(true);
         setError(null);
 
-        // Fetch courses
-        const { data: normal, error: errNormal } = await supabase
-          .from("courses")
-          .select("id, title, price, thumbnail_url")
-          .order("created_at", { ascending: false } as any);
+        // ✅ Fetch from your API
+        const res = await fetch('/api/admin/fetch-mux-courses');
+        const result = await res.json();
 
-        if (errNormal) throw errNormal;
+        if (!res.ok || !result.success) {
+          throw new Error(result.message || 'Failed to load courses');
+        }
 
-        const { data: yt, error: errYt } = await supabase
-          .from("courses_yt")
-          .select("id, title, price, thumbnail_url")
-          .order("created_at", { ascending: false } as any);
-
-        if (errYt) throw errYt;
-
-        // Normalize data
-        const normMapped: UnifiedCourse[] =
-          (normal as DbCourse[] | null)?.map((c) => ({
-            id: `c_${c.id}`,
+        // Map to unified format
+        const mappedCourses: UnifiedCourse[] =
+          (result.data || []).map((c: any) => ({
+            id: `mux_${c.id}`,
             rawId: c.id,
             title: c.title,
             price: Number(c.price ?? 0),
             thumbnailUrl: c.thumbnail_url ?? null,
-          })) ?? [];
+          }));
 
-        const ytMapped: UnifiedCourse[] =
-          (yt as DbCourse[] | null)?.map((c) => ({
-            id: `yt_${c.id}`,
-            rawId: c.id,
-            title: c.title,
-            price: Number(c.price ?? 0),
-            thumbnailUrl: c.thumbnail_url ?? null,
-          })) ?? [];
-
-        const merged = [...normMapped, ...ytMapped];
-
-        if (!cancelled) setCourses(merged);
+        if (!cancelled) setCourses(mappedCourses);
       } catch (e: any) {
         if (!cancelled) setError(e?.message || "Failed to load courses");
       } finally {
@@ -79,17 +52,15 @@ export default function HomePageCourses() {
       }
     }
 
-    load();
+    loadCourses();
+
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const skeletons = useMemo(() => new Array(8).fill(0).map((_, i) => i), []);
-
-  const handleClick = (id: string) => {
-    router.push(`/courses/${encodeURIComponent(id)}`);
-  };
+  const skeletons = useMemo(() => Array.from({ length: 8 }, (_, i) => i), []);
+  const handleClick = (id: string) => router.push(`/courses/${encodeURIComponent(id)}`);
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12">
@@ -108,7 +79,6 @@ export default function HomePageCourses() {
         </div>
       )}
 
-      {/* Loading state */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {skeletons.map((i) => (
@@ -130,53 +100,47 @@ export default function HomePageCourses() {
           layout
           className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8"
         >
-          {courses.slice(0, 8).map((course) => (
-            <motion.div
-              key={course.id}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handleClick(course.id)}
-              className="cursor-pointer rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-md hover:shadow-xl transition-all duration-300 group flex flex-col"
-            >
-              {/* Thumbnail */}
-              <div className="relative aspect-video overflow-hidden">
-                <img
-                  src={course.thumbnailUrl || "/default-thumb.jpg"}
-                  alt={course.title}
-                  className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-              </div>
-
-              {/* Content */}
-              <div className="flex flex-col flex-grow p-5">
-                <h3 className="text-lg font-semibold text-zinc-900 group-hover:text-red-600 transition-colors duration-300">
-                  {course.title}
-                </h3>
-                <p className="mt-2 text-sm text-zinc-500 flex-grow">
-                  Tap to explore and enroll instantly.
-                </p>
-
-                {/* Price + Button */}
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-lg font-bold text-red-600">
-                    ₹{course.price}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // prevent card click firing
-                      handleClick(course.id);
-                    }}
-                    className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium shadow-md hover:bg-red-700 transition-colors"
-                  >
-                    Enroll Now
-                  </button>
+          {courses.length > 0 ? (
+            courses.slice(0, 8).map((course) => (
+              <motion.div
+                key={course.id}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleClick(course.id)}
+                className="cursor-pointer rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-md hover:shadow-xl transition-all duration-300 group flex flex-col"
+              >
+                <div className="relative aspect-video overflow-hidden">
+                  <img
+                    src={course.thumbnailUrl || "/default-thumb.jpg"}
+                    alt={course.title}
+                    className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
                 </div>
-              </div>
-            </motion.div>
-          ))}
-
-          {/* Empty state */}
-          {courses.length === 0 && !error && (
+                <div className="flex flex-col flex-grow p-5">
+                  <h3 className="text-lg font-semibold text-zinc-900 group-hover:text-red-600 transition-colors duration-300">
+                    {course.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-zinc-500 flex-grow">
+                    Tap to explore and enroll instantly.
+                  </p>
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-lg font-bold text-red-600">
+                      ₹{course.price}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClick(course.id);
+                      }}
+                      className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium shadow-md hover:bg-red-700 transition-colors"
+                    >
+                      Enroll Now
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))
+          ) : (
             <div className="col-span-full rounded-2xl border border-zinc-200 p-8 text-center text-zinc-600">
               No courses available right now.
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FiEdit, FiTrash2, FiPlus, FiLogOut } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,10 +22,9 @@ export default function AdminPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const router = useRouter();
 
-  // ✅ Check admin authentication safely (client-side only)
+  // ✅ Check admin auth
   useEffect(() => {
     const checkAuth = () => {
-      if (typeof window === "undefined") return; // Prevent SSR access to localStorage
       const isAdmin = localStorage.getItem("isAdmin");
       if (isAdmin !== "true") {
         router.replace("/admin-login");
@@ -36,12 +35,12 @@ export default function AdminPage() {
     checkAuth();
   }, [router]);
 
-  // ✅ Fetch courses once auth check completes
+  // ✅ Fetch courses once auth is done
   useEffect(() => {
     if (!checkingAuth) fetchCourses();
   }, [checkingAuth]);
 
-  // ✅ Fetch from backend API
+  // ✅ Fetch from backend
   const fetchCourses = async () => {
     setLoading(true);
     try {
@@ -87,14 +86,21 @@ export default function AdminPage() {
 
   // ✅ Logout handler
   const handleLogout = () => {
-    if (typeof window !== "undefined") {
-      localStorage.clear();
-      router.replace("/admin-login");
-    }
+    localStorage.clear();
+    router.replace("/admin-login");
   };
 
-  // 🌀 Loading Screens
-  if (checkingAuth || loading) {
+  // ⏳ While checking auth
+  if (checkingAuth) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-14 w-14 border-4 border-indigo-500 border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  // ⏳ While loading data
+  if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-14 w-14 border-4 border-indigo-500 border-t-transparent"></div>
@@ -119,7 +125,7 @@ export default function AdminPage() {
       </div>
 
       {/* Course Grid */}
-      {courses.length > 0 ? (
+      {Array.isArray(courses) && courses.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           <AnimatePresence>
             {courses.map((course, index) => (
@@ -131,7 +137,6 @@ export default function AdminPage() {
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-3xl shadow-xl overflow-hidden hover:scale-105 hover:shadow-2xl transition-transform duration-300 relative"
               >
-                {/* Thumbnail & Controls */}
                 <div className="relative h-48 overflow-hidden rounded-t-3xl">
                   <img
                     src={course.thumbnail_url || "/placeholder.png"}
@@ -154,8 +159,6 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
-
-                {/* Course Info */}
                 <div className="p-5">
                   <h2 className="text-xl font-bold text-indigo-800 line-clamp-1">
                     {course.title}

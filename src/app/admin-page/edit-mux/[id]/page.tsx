@@ -112,7 +112,7 @@ export default function EditCoursePage() {
     }
   };
 
-  const handleDragEnd = async (result: DropResult) => {
+  const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
 
     const reordered = Array.from(lessons);
@@ -121,39 +121,6 @@ export default function EditCoursePage() {
 
     // Update local state immediately for UI responsiveness
     setLessons(reordered);
-
-    // Persist order changes to database
-    try {
-      const updates = reordered
-        .filter(lesson => lesson.id) // Only update lessons that have IDs
-        .map((lesson, index) => ({
-          id: lesson.id!,
-          lesson_order: index,
-        }));
-
-      console.log("Sending lesson order updates:", updates);
-
-      const res = await fetch("/api/admin/update-lesson-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lessons: updates }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        console.error("Failed to update order:", data.error);
-        alert("Failed to save lesson order. Please try again.");
-        // Revert to original order on failure
-        fetchCourse();
-      } else {
-        console.log("Lesson order updated successfully");
-      }
-    } catch (err) {
-      console.error("Error updating order:", err);
-      alert("Error saving lesson order. Please try again.");
-      // Revert to original order on failure
-      fetchCourse();
-    }
   };
 
   /** Extract Mux playback ID from URL */
@@ -267,7 +234,7 @@ export default function EditCoursePage() {
       // 2️⃣ Prepare all lessons with video/document uploads and order
       const updatedLessons: any[] = [];
 
-      // Existing lessons
+      // Existing lessons - now with proper ordering from drag and drop
       for (let i = 0; i < lessons.length; i++) {
         const lesson = lessons[i];
         const oldVideoUrl = lesson.video_url || lesson.mux_video_id || "";
@@ -313,6 +280,8 @@ export default function EditCoursePage() {
         thumbnail_url: finalThumbnailUrl,
         lessons: updatedLessons,
       };
+
+      console.log("Submitting course update with lessons:", updatedLessons);
 
       // 4️⃣ Send to update course API
       const res = await fetch("/api/admin/update-mux-course", {
@@ -398,6 +367,7 @@ export default function EditCoursePage() {
       {/* Lessons */}
       <div className="bg-white rounded-lg p-6 shadow-md mb-6">
         <h2 className="text-xl font-semibold mb-4">Existing Lessons</h2>
+        <p className="text-sm text-gray-600 mb-4">Drag and drop to reorder lessons. Changes will be saved when you click "Update Course".</p>
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="lessons">
             {(provided) => (
