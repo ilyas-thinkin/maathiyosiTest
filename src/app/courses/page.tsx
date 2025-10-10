@@ -28,13 +28,22 @@ export default function CoursesPage() {
     try {
       const res = await fetch("/api/admin/fetch-mux-courses");
       const data = await res.json();
+      console.log("Fetched data:", data); // 👀 Debug output
 
-      if (!data || data.error) {
-        console.error("Error fetching courses:", data?.error);
-        setCourses([]);
+      // ✅ Safely handle multiple response formats
+      let coursesArray: MuxCourse[] = [];
+
+      if (Array.isArray(data)) {
+        coursesArray = data;
+      } else if (Array.isArray(data?.courses)) {
+        coursesArray = data.courses;
+      } else if (Array.isArray(data?.data)) {
+        coursesArray = data.data;
       } else {
-        setCourses(data);
+        console.error("Unexpected API response format:", data);
       }
+
+      setCourses(coursesArray);
     } catch (err) {
       console.error("Fetch error:", err);
       setCourses([]);
@@ -69,7 +78,7 @@ export default function CoursesPage() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 20, scale: 0.7 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                onClick={() => router.push(`/courses/${course.id}`)} // Navigate to course details page
+                onClick={() => router.push(`/courses/${course.id}`)}
                 className="cursor-pointer bg-gradient-to-br from-white to-indigo-50 rounded-3xl shadow-xl overflow-hidden hover:scale-105 hover:shadow-2xl transition-transform duration-300 relative"
               >
                 <div className="relative h-48 overflow-hidden rounded-t-3xl">
@@ -83,7 +92,9 @@ export default function CoursesPage() {
                   <h2 className="text-xl font-bold text-indigo-800 line-clamp-1">
                     {course.title}
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">{course.category}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {course.category}
+                  </p>
                   <p className="text-gray-700 mt-2 line-clamp-3">
                     {course.description}
                   </p>
