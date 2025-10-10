@@ -3,14 +3,17 @@
 import { useEffect } from "react";
 import HeroCarousel from "./HeroCarousel1 copy";
 
-// ✅ Tell TypeScript what <spline-viewer> is
-declare global {
+// ✅ Local type workaround (without needing global.d.ts)
+type SplineViewerProps = React.DetailedHTMLProps<
+  React.HTMLAttributes<HTMLElement>,
+  HTMLElement
+> & { url?: string };
+
+// ✅ Tell TypeScript to ignore JSX type checking for this tag name
+declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
-      "spline-viewer": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement>,
-        HTMLElement
-      > & { url?: string };
+      "spline-viewer": SplineViewerProps;
     }
   }
 }
@@ -29,28 +32,26 @@ export default function HeroSection() {
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20">
-      {/* 🧩 3D Background */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="relative w-full h-[90vh] md:h-[100vh] overflow-hidden">
+          {/* ✅ TypeScript now recognizes this tag */}
           <spline-viewer
             url="https://prod.spline.design/rTrnaZjpBlGzEDP8/scene.splinecode"
             style={{
               width: "100%",
-              height: "120%", // zoomed in slightly
+              height: "120%",
               position: "absolute",
-              top: "-10%", // moves up to hide unwanted lower UI
+              top: "-10%",
               left: 0,
               objectFit: "cover",
-              pointerEvents: "none", // disables click blocking
+              pointerEvents: "none",
             }}
           />
         </div>
       </div>
 
-      {/* 🖤 Strong overlay for text contrast */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/10 to-black/60 -z-10"></div>
 
-      {/* ✨ Foreground Text */}
       <div className="relative z-10 text-center mt-12 px-6 animate-fade-in">
         <h1 className="text-5xl md:text-7xl font-extrabold mb-4 text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.9)]">
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#60a5fa] via-[#a855f7] to-[#ec4899]">
@@ -67,8 +68,6 @@ export default function HeroSection() {
           the innovators of tomorrow.
         </p>
       </div>
-
-
     </section>
   );
 }
