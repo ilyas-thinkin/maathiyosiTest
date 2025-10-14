@@ -1,73 +1,71 @@
 "use client";
 
-import { useEffect } from "react";
-import HeroCarousel from "./HeroCarousel1 copy";
-
-// ✅ Local type workaround (without needing global.d.ts)
-type SplineViewerProps = React.DetailedHTMLProps<
-  React.HTMLAttributes<HTMLElement>,
-  HTMLElement
-> & { url?: string };
-
-// ✅ Tell TypeScript to ignore JSX type checking for this tag name
-declare module "react" {
-  namespace JSX {
-    interface IntrinsicElements {
-      "spline-viewer": SplineViewerProps;
-    }
-  }
-}
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { ArrowRight, Rocket } from "lucide-react";
+import { useState } from "react";
 
 export default function HeroSection() {
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.type = "module";
-    script.src =
-      "https://unpkg.com/@splinetool/viewer@1.10.77/build/spline-viewer.js";
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
+  const [hovered, setHovered] = useState(false);
 
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20">
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="relative w-full h-[90vh] md:h-[100vh] overflow-hidden">
-          {/* ✅ TypeScript now recognizes this tag */}
-          <spline-viewer
-            url="https://prod.spline.design/rTrnaZjpBlGzEDP8/scene.splinecode"
-            style={{
-              width: "100%",
-              height: "120%",
-              position: "absolute",
-              top: "-10%",
-              left: 0,
-              objectFit: "cover",
-              pointerEvents: "none",
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/10 to-black/60 -z-10"></div>
-
-      <div className="relative z-10 text-center mt-12 px-6 animate-fade-in">
-        <h1 className="text-5xl md:text-7xl font-extrabold mb-4 text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.9)]">
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#60a5fa] via-[#a855f7] to-[#ec4899]">
-            Learn Future Skills
-          </span>
+    <section className="relative overflow-hidden w-full bg-gradient-to-r from-[#fffafa] via-[#fef2f2] to-[#ffffff] py-20 px-6 md:px-20 flex flex-col-reverse md:flex-row items-center justify-between gap-12">
+      {/* Left Content */}
+      <motion.div
+        initial={{ opacity: 0, x: -40 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8 }}
+        className="text-center md:text-left max-w-xl"
+      >
+        <h1 className="text-4xl md:text-6xl font-extrabold text-gray-900 leading-tight tracking-tight font-sans">
+          Learn. Build. <br />
+          <span className="text-[#de5252]">Think Differently.</span>
         </h1>
 
-        <p className="text-lg md:text-2xl italic text-gray-200 max-w-2xl mx-auto mb-6 leading-relaxed drop-shadow-[0_2px_5px_rgba(0,0,0,0.9)]">
-          “The future belongs to those who learn, unlearn, and relearn.”
+        <p className="text-gray-600 mt-5 text-lg md:text-xl font-light max-w-md mx-auto md:mx-0">
+          <span className="font-semibold text-[#de5252]">maathiyosi.io</span> helps
+          you master cutting-edge technologies — from AI and Web3 to
+          full-stack development — through real-world, hands-on learning.
         </p>
 
-        <p className="text-lg md:text-xl text-gray-100 max-w-3xl mx-auto leading-relaxed drop-shadow-[0_2px_5px_rgba(0,0,0,0.9)]">
-          Master cutting-edge technologies with expert-led courses designed for
-          the innovators of tomorrow.
-        </p>
-      </div>
+        <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+          {/* Primary Button */}
+          <button
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            className="group bg-[#de5252] hover:bg-[#c24343] text-white font-semibold py-3.5 px-10 rounded-full shadow-md flex items-center justify-center gap-2 transition-all duration-300 hover:shadow-lg relative cursor-pointer"
+          >
+            <span>Start Learning</span>
+            {hovered ? (
+              <Rocket className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
+            ) : (
+              <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
+            )}
+          </button>
+
+          {/* Secondary Button */}
+          <button className="border border-[#de5252] text-[#de5252] hover:bg-[#fff1f1] font-semibold py-3.5 px-10 rounded-full transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
+            Browse Courses
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Right Illustration */}
+      <motion.div
+        initial={{ opacity: 0, x: 40 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8 }}
+        className="flex justify-center md:justify-end"
+      >
+        <Image
+          src="/himg.png" // ✅ Ensure this exists in /public
+          alt="Learning Illustration"
+          width={500}
+          height={400}
+          className="drop-shadow-2xl max-w-full h-auto"
+          priority
+        />
+      </motion.div>
     </section>
   );
 }

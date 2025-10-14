@@ -57,11 +57,11 @@ export default function AboutUs() {
       {/* Stats Section */}
       <section className="bg-gray-50 py-16">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl mx-auto px-6 text-center">
-          {[
-            { number: "10,000+", label: "Students Enrolled" },
-            { number: "50+", label: "Expert Instructors" },
-            { number: "100+", label: "Courses Available" },
-            { number: "95%", label: "Success Rate" },
+          {[  
+            { number: '10,000+',label: 'Students Trained' },
+            { number: '100+',label: 'Educational Institution' },
+            { number: '20k+',label: 'Students' },
+            { number: '98%',label: 'Success Rate' }
           ].map((stat, i) => (
             <motion.div
               key={i}

@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 type UnifiedCourse = {
-  id: string;
+  id: string; // prefixed for MUX courses
   rawId: string | number;
   title: string;
   price: number;
@@ -13,139 +13,107 @@ type UnifiedCourse = {
 };
 
 export default function HomePageCourses() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [courses, setCourses] = useState<UnifiedCourse[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadCourses() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // ✅ Fetch from your API
-        const res = await fetch('/api/admin/fetch-mux-courses');
-        const result = await res.json();
-
-        if (!res.ok || !result.success) {
-          throw new Error(result.message || 'Failed to load courses');
-        }
-
-        // Map to unified format
-        const mappedCourses: UnifiedCourse[] =
-          (result.data || []).map((c: any) => ({
-            id: `mux_${c.id}`,
-            rawId: c.id,
-            title: c.title,
-            price: Number(c.price ?? 0),
-            thumbnailUrl: c.thumbnail_url ?? null,
-          }));
-
-        if (!cancelled) setCourses(mappedCourses);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || "Failed to load courses");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    loadCourses();
-
-    return () => {
-      cancelled = true;
-    };
+    fetchCourses();
   }, []);
 
-  const skeletons = useMemo(() => Array.from({ length: 8 }, (_, i) => i), []);
-  const handleClick = (id: string) => router.push(`/courses/${encodeURIComponent(id)}`);
+  const fetchCourses = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/fetch-mux-courses");
+      const data = await res.json();
+
+      let coursesArray: any[] = [];
+      if (Array.isArray(data)) coursesArray = data;
+      else if (Array.isArray(data?.courses)) coursesArray = data.courses;
+      else if (Array.isArray(data?.data)) coursesArray = data.data;
+
+      const mappedCourses: UnifiedCourse[] = coursesArray.map((c: any) => ({
+        id: `${c.id}`,
+        rawId: c.id,
+        title: c.title,
+        price: Number(c.price ?? 0),
+        thumbnailUrl: c.thumbnail_url ?? "/placeholder.png",
+      }));
+
+      setCourses(mappedCourses);
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to load courses");
+      setCourses([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <div className="animate-spin rounded-full h-14 w-14 border-4 border-red-600 border-t-transparent"></div>
+      </div>
+    );
+  }
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-12">
-      <div className="mb-8 text-center">
-        <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-red-600 to-red-400 text-transparent bg-clip-text">
+    <section className="max-w-7xl mx-auto px-4 py-12">
+      <div className="text-center mb-10">
+        <h2 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-red-600 to-red-400 text-transparent bg-clip-text">
           Explore Our Courses
         </h2>
-        <p className="mt-3 text-zinc-600 text-lg">
+        <p className="mt-3 text-gray-600 text-lg">
           Learn, grow, and unlock your potential 🚀
         </p>
       </div>
 
       {error && (
-        <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 text-red-800 shadow-sm">
+        <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 text-red-800 shadow-sm text-center">
           {error}
         </div>
       )}
 
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {skeletons.map((i) => (
-            <div
-              key={i}
-              className="animate-pulse rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-sm"
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+        <AnimatePresence>
+          {courses.slice(0, 8).map((course, index) => (
+            <motion.div
+              key={course.id}
+              initial={{ opacity: 0, y: 50, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.9 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              onClick={() => router.push(`/courses/${course.id}`)}
+              className="cursor-pointer bg-white rounded-3xl shadow-xl overflow-hidden hover:scale-105 hover:shadow-2xl transition-transform duration-300 relative flex flex-col"
             >
-              <div className="aspect-video bg-zinc-100" />
-              <div className="p-4 space-y-3">
-                <div className="h-5 bg-zinc-200 rounded w-3/4" />
-                <div className="h-5 bg-zinc-200 rounded w-1/2" />
-                <div className="h-8 bg-red-100 rounded w-24" />
+              <div className="relative h-48 overflow-hidden rounded-t-3xl">
+                <img
+                  src={course.thumbnailUrl || "/placeholder.png"}
+                  alt={course.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                />
               </div>
-            </div>
+              <div className="p-5 flex flex-col flex-grow">
+                <h3 className="text-lg font-bold text-zinc-900 line-clamp-2">
+                  {course.title}
+                </h3>
+                <p className="text-gray-500 mt-1 flex-grow">
+                  Tap to explore and enroll instantly.
+                </p>
+                <p className="text-lg font-semibold text-red-600 mt-3">
+                  ₹{course.price.toLocaleString() || "0"}
+                </p>
+              </div>
+            </motion.div>
           ))}
-        </div>
-      ) : (
-        <motion.div
-          layout
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8"
-        >
-          {courses.length > 0 ? (
-            courses.slice(0, 8).map((course) => (
-              <motion.div
-                key={course.id}
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleClick(course.id)}
-                className="cursor-pointer rounded-2xl overflow-hidden border border-zinc-200 bg-white shadow-md hover:shadow-xl transition-all duration-300 group flex flex-col"
-              >
-                <div className="relative aspect-video overflow-hidden">
-                  <img
-                    src={course.thumbnailUrl || "/default-thumb.jpg"}
-                    alt={course.title}
-                    className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                </div>
-                <div className="flex flex-col flex-grow p-5">
-                  <h3 className="text-lg font-semibold text-zinc-900 group-hover:text-red-600 transition-colors duration-300">
-                    {course.title}
-                  </h3>
-                  <p className="mt-2 text-sm text-zinc-500 flex-grow">
-                    Tap to explore and enroll instantly.
-                  </p>
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="text-lg font-bold text-red-600">
-                      ₹{course.price}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleClick(course.id);
-                      }}
-                      className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium shadow-md hover:bg-red-700 transition-colors"
-                    >
-                      Enroll Now
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))
-          ) : (
-            <div className="col-span-full rounded-2xl border border-zinc-200 p-8 text-center text-zinc-600">
-              No courses available right now.
-            </div>
-          )}
-        </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {courses.length === 0 && !loading && (
+        <p className="text-center text-gray-400 mt-10">No courses available.</p>
       )}
     </section>
   );
