@@ -1,16 +1,21 @@
-import { createClient } from '@supabase/supabase-js'
-import { createClientComponentClient as createAuthClient } from "@supabase/auth-helpers-nextjs";
+import { createClient } from '@supabase/supabase-js';
+import { createClientComponentClient as createAuthClient } from '@supabase/auth-helpers-nextjs';
 
+// ✅ Load env safely
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Replace these with your actual Supabase URL and public anon key
-const supabaseUrl = 'https://kcvghsnlzythcublawvf.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtjdmdoc25senl0aGN1Ymxhd3ZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzNDUxODAsImV4cCI6MjA2ODkyMTE4MH0.5A1TkCQvyGxaxodmWP_xllQ1Orz_p60Cz8Hvt406sJQ'
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ Supabase environment variables are missing.');
+  throw new Error('supabaseUrl is required.');
+}
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+// ✅ Server + Client Safe Supabase Client
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// ✅ Client-side helper for Google login etc.
-export const createClientComponentClient = () => 
+// ✅ Auth Helper (client-side use)
+export const createClientComponentClient = () =>
   createAuthClient({
     supabaseUrl,
-    supabaseKey
+    supabaseKey: supabaseAnonKey,
   });

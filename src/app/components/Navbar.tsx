@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { Menu, X, LogOut, BookOpen, Settings, LayoutDashboard } from 'lucide-react';
-import { createClientComponentClient } from '@/app/components/lib/supabaseClient';
+import { supabase } from '@/app/components/lib/supabaseClient'; // Changed this line
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -12,7 +12,6 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const supabase = createClientComponentClient();
 
   // --- Fetch session & subscribe to auth changes ---
   useEffect(() => {
@@ -48,7 +47,7 @@ export default function Navbar() {
       document.removeEventListener('mousedown', handleClickOutside);
       subscription.subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, []); // Removed supabase from dependencies since it's now a stable import
 
   // --- Fixed Logout (Complete Cleanup) ---
   const handleLogout = async () => {
