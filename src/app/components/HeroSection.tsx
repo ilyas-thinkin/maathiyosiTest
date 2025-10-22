@@ -4,9 +4,11 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight, Rocket } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function HeroSection() {
   const [hovered, setHovered] = useState(false);
+  const router = useRouter();
 
   return (
     <section className="relative overflow-hidden w-full bg-gradient-to-r from-[#fffafa] via-[#fef2f2] to-[#ffffff] py-20 px-6 md:px-20 flex flex-col-reverse md:flex-row items-center justify-between gap-12">
@@ -29,10 +31,11 @@ export default function HeroSection() {
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-          {/* Primary Button */}
+          {/* Primary Button → /login */}
           <button
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
+            onClick={() => router.push("/login")}
             className="group bg-[#de5252] hover:bg-[#c24343] text-white font-semibold py-3.5 px-10 rounded-full shadow-md flex items-center justify-center gap-2 transition-all duration-300 hover:shadow-lg relative cursor-pointer"
           >
             <span>Start Learning</span>
@@ -43,8 +46,11 @@ export default function HeroSection() {
             )}
           </button>
 
-          {/* Secondary Button */}
-          <button className="border border-[#de5252] text-[#de5252] hover:bg-[#fff1f1] font-semibold py-3.5 px-10 rounded-full transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
+          {/* Secondary Button → /courses */}
+          <button
+            onClick={() => router.push("/courses")}
+            className="border border-[#de5252] text-[#de5252] hover:bg-[#fff1f1] font-semibold py-3.5 px-10 rounded-full transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
+          >
             Browse Courses
           </button>
         </div>
@@ -58,7 +64,7 @@ export default function HeroSection() {
         className="flex justify-center md:justify-end"
       >
         <Image
-          src="/himg.png" // ✅ Ensure this exists in /public
+          src="/himg.png"
           alt="Learning Illustration"
           width={500}
           height={400}
