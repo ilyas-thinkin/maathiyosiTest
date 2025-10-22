@@ -13,8 +13,6 @@ type MuxCourse = {
   category: string;
   thumbnail_url: string;
   created_at: string;
-  mux_asset_id?: string;
-  mux_playback_id?: string;
 };
 
 export default function AdminPage() {
@@ -24,10 +22,10 @@ export default function AdminPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const router = useRouter();
 
-  // ✅ Check admin authentication
+  // ✅ Check admin authentication safely (client-side only)
   useEffect(() => {
     const checkAuth = () => {
-      if (typeof window === "undefined") return;
+      if (typeof window === "undefined") return; // Prevent SSR access to localStorage
       const isAdmin = localStorage.getItem("isAdmin");
       if (isAdmin !== "true") {
         router.replace("/admin-login");
@@ -38,12 +36,12 @@ export default function AdminPage() {
     checkAuth();
   }, [router]);
 
-  // ✅ Fetch courses once authentication passes
+  // ✅ Fetch courses once auth check completes
   useEffect(() => {
     if (!checkingAuth) fetchCourses();
   }, [checkingAuth]);
 
-  // ✅ Fetch courses from backend
+  // ✅ Fetch from backend API
   const fetchCourses = async () => {
     setLoading(true);
     try {
@@ -68,31 +66,26 @@ export default function AdminPage() {
     }
   };
 
-  // ✅ Delete a course (with Mux asset)
-  const handleDelete = async (course: MuxCourse) => {
+  // ✅ Delete a course
+  const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this course?")) return;
-
-    setDeleting(course.id);
+    setDeleting(id);
     try {
-      const res = await fetch(`/api/admin/delete-mux-course?id=${course.id}`, {
+      const res = await fetch(`/api/admin/delete-mux-course?id=${id}`, {
         method: "DELETE",
       });
-
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-
-      // Remove from UI
-      setCourses((prev) => prev.filter((c) => c.id !== course.id));
-      alert("✅ Course and Mux asset deleted successfully!");
+      setCourses((prev) => prev.filter((c) => c.id !== id));
+      alert("Course deleted successfully!");
     } catch (err: any) {
-      alert("❌ Delete failed: " + err.message);
-      console.error("Delete error:", err);
+      alert("Delete failed: " + err.message);
     } finally {
       setDeleting(null);
     }
   };
 
-  // ✅ Logout
+  // ✅ Logout handler
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.clear();
@@ -100,7 +93,7 @@ export default function AdminPage() {
     }
   };
 
-  // 🌀 Loading screens
+  // 🌀 Loading Screens
   if (checkingAuth || loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -153,7 +146,7 @@ export default function AdminPage() {
                       <FiEdit />
                     </button>
                     <button
-                      onClick={() => handleDelete(course)}
+                      onClick={() => handleDelete(course.id)}
                       disabled={deleting === course.id}
                       className="bg-red-500 p-2 rounded-full text-white shadow hover:bg-red-600 transition-all disabled:opacity-50"
                     >

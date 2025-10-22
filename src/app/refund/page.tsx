@@ -16,7 +16,7 @@ export default function RefundPage() {
       <p className="mb-4">
         If you are charged twice for the same course, please email 
         <strong> info@thinkinlab.com </strong> with payment proof. 
-        We will initiate a refund within 7 working days.
+        The refund amount will be credited to the original payment method within 10-15 working days.
       </p>
 
       <h2 className="text-xl font-semibold mt-6 mb-2">3. Technical Issues</h2>
