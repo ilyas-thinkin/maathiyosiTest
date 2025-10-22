@@ -21,18 +21,6 @@ export default function Footer() {
       { name: 'Internships', href: '#' },
       { name: 'Customised Automation', href: '#' },
     ],
-    company: [
-      { name: 'About Us', href: '/about-us' },
-      { name: 'Our Team', href: '#' },
-      { name: 'Careers', href: '#' },
-      { name: 'Blog', href: '#' },
-    ],
-    support: [
-      { name: 'Help Center', href: '#' },
-      { name: 'Privacy Policy', href: '/privacy' },
-      { name: 'Terms & Conditions', href: '/terms' },
-      { name: 'Contact Us', href: '/contact' },
-    ],
   };
 
   const socialLinks = [
@@ -48,19 +36,23 @@ export default function Footer() {
     <footer className="bg-gradient-to-br from-[#de5252] via-[#d63838] to-[#c41e1e] text-white relative overflow-hidden mt-20">
       {/* Background pattern */}
       <div className="absolute inset-0 opacity-10">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `radial-gradient(circle at 25% 25%, white 2px, transparent 2px)`,
-          backgroundSize: '50px 50px'
-        }}></div>
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `radial-gradient(circle at 25% 25%, white 2px, transparent 2px)`,
+            backgroundSize: '50px 50px'
+          }}
+        ></div>
       </div>
-      
+
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent"></div>
-      
+
       <div className="relative z-10">
         {/* Main Footer Content */}
         <div className="max-w-7xl mx-auto px-6 py-20">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+            
             {/* Brand Section */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -77,9 +69,9 @@ export default function Footer() {
                   <p className="text-white/80 text-sm">Education for Tomorrow</p>
                 </div>
               </div>
-              
+
               <p className="text-white/90 leading-relaxed text-lg">
-                Empowering students with cutting-edge courses in AI, IoT, Robotics, and Coding. 
+                Empowering students with cutting-edge courses in AI, IoT, Robotics, and Coding.
                 Shaping future innovators for a smarter tomorrow.
               </p>
 
@@ -134,35 +126,7 @@ export default function Footer() {
               </ul>
             </motion.div>
 
-            {/* Company Section */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="space-y-8"
-            >
-              <div>
-                <h3 className="text-xl font-bold text-white mb-6 relative inline-block">
-                  Company
-                  <span className="absolute -bottom-2 left-0 w-16 h-1 bg-white rounded-full"></span>
-                </h3>
-              </div>
-              <ul className="space-y-4">
-                {footerLinks.company.map((link, index) => (
-                  <li key={index}>
-                    <a
-                      href={link.href}
-                      className="text-white/90 hover:text-white transition-all duration-200 flex items-center group text-lg"
-                    >
-                      <FaArrowRight className="w-4 h-4 mr-3 opacity-0 group-hover:opacity-100 transition-all duration-200 transform group-hover:translate-x-1" />
-                      {link.name}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-
-            {/* Newsletter Section */}
+            {/* Newsletter + Social Section */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -178,7 +142,7 @@ export default function Footer() {
               <p className="text-white/90 text-lg leading-relaxed">
                 Subscribe to our newsletter for the latest courses and updates.
               </p>
-              
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <input
                   type="email"
@@ -222,10 +186,10 @@ export default function Footer() {
             <div className="flex flex-col md:flex-row items-center justify-between space-y-6 md:space-y-0">
               <div className="text-white/90 text-lg">
                 © {new Date().getFullYear()}{' '}
-                <span className="font-bold text-white">Maathiyosi</span>. 
+                <span className="font-bold text-white">Maathiyosi</span>.
                 All rights reserved.
               </div>
-              
+
               <div className="flex space-x-8 text-lg">
                 <a href="/privacy" className="text-white/90 hover:text-white transition-colors duration-200 font-medium">
                   Privacy Policy
