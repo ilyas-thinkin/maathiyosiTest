@@ -15,11 +15,11 @@ export default function Footer() {
 
   const footerLinks = {
     services: [
-      { name: 'STEM / Robotics / AI Lab Setup', href: '#' },
-      { name: 'STEM Classes with Kits', href: '#' },
-      { name: 'Workshops & Events', href: '#' },
-      { name: 'Internships', href: '#' },
-      { name: 'Customised Automation', href: '#' },
+      { name: 'STEM / Robotics / AI Lab Setup', href: 'thinkinlab.com/school-2/' },
+      { name: 'STEM Classes with Kits', href: 'thinkinlab.com/school-2/' },
+      { name: 'Workshops & Events', href: 'thinkinlab.com/school-2/' },
+      { name: 'Internships', href: 'https://thinkinlab.com/school/' },
+      { name: 'Customised Automation'},
     ],
   };
 
@@ -29,7 +29,6 @@ export default function Footer() {
     { icon: FaYoutube, href: '#', label: 'YouTube' },
     { icon: FaInstagram, href: '#', label: 'Instagram' },
     { icon: FaLinkedin, href: '#', label: 'LinkedIn' },
-    { icon: FaGithub, href: '#', label: 'GitHub' },
   ];
 
   return (
@@ -107,7 +106,7 @@ export default function Footer() {
             >
               <div>
                 <h3 className="text-xl font-bold text-white mb-6 relative inline-block">
-                  Our Services
+                  Our Services - Thinkin Lab
                   <span className="absolute -bottom-2 left-0 w-16 h-1 bg-white rounded-full"></span>
                 </h3>
               </div>
