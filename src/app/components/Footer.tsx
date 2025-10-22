@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from 'react';
-import { FaFacebook, FaTwitter, FaYoutube, FaInstagram, FaLinkedin, FaGithub, FaMailBulk, FaPhone, FaMapMarkerAlt, FaArrowRight } from "react-icons/fa";
+import {
+  FaFacebook,
+  FaTwitter,
+  FaYoutube,
+  FaInstagram,
+  FaLinkedin,
+  FaGithub,
+  FaMailBulk,
+  FaPhone,
+  FaMapMarkerAlt,
+  FaArrowRight,
+} from "react-icons/fa";
 import { motion } from 'framer-motion';
 
 export default function Footer() {
@@ -15,11 +26,11 @@ export default function Footer() {
 
   const footerLinks = {
     services: [
-      { name: 'STEM / Robotics / AI Lab Setup', href: 'thinkinlab.com/school-2/' },
-      { name: 'STEM Classes with Kits', href: 'thinkinlab.com/school-2/' },
-      { name: 'Workshops & Events', href: 'thinkinlab.com/school-2/' },
+      { name: 'STEM / Robotics / AI Lab Setup', href: 'https://thinkinlab.com/school-2/' },
+      { name: 'STEM Classes with Kits', href: 'https://thinkinlab.com/school-2/' },
+      { name: 'Workshops & Events', href: 'https://thinkinlab.com/school-2/' },
       { name: 'Internships', href: 'https://thinkinlab.com/school/' },
-      { name: 'Customised Automation'},
+      { name: 'Customised Automation', href: 'https://thinkinlab.com/custom-automation/' },
     ],
   };
 
@@ -38,7 +49,7 @@ export default function Footer() {
           className="absolute inset-0"
           style={{
             backgroundImage: `radial-gradient(circle at 25% 25%, white 2px, transparent 2px)`,
-            backgroundSize: '50px 50px'
+            backgroundSize: '50px 50px',
           }}
         ></div>
       </div>
@@ -50,7 +61,6 @@ export default function Footer() {
         {/* Main Footer Content */}
         <div className="max-w-7xl mx-auto px-6 py-20">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-            
             {/* Brand Section */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -114,6 +124,8 @@ export default function Footer() {
                   <li key={index}>
                     <a
                       href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="text-white/90 hover:text-white transition-all duration-200 flex items-center group text-lg"
                     >
                       <FaArrowRight className="w-4 h-4 mr-3 opacity-0 group-hover:opacity-100 transition-all duration-200 transform group-hover:translate-x-1" />
@@ -166,6 +178,8 @@ export default function Footer() {
                     <a
                       key={index}
                       href={social.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       aria-label={social.label}
                       className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center text-white hover:bg-white/30 transition-all duration-200 transform hover:scale-110 border border-white/30"
                     >
@@ -184,8 +198,7 @@ export default function Footer() {
             <div className="flex flex-col md:flex-row items-center justify-between space-y-6 md:space-y-0">
               <div className="text-white/90 text-lg">
                 © {new Date().getFullYear()}{' '}
-                <span className="font-bold text-white">Maathiyosi</span>.
-                All rights reserved.
+                <span className="font-bold text-white">Maathiyosi</span>. All rights reserved.
               </div>
 
               <div className="flex space-x-8 text-lg">
