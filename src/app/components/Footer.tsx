@@ -24,11 +24,10 @@ export default function Footer() {
   };
 
   const socialLinks = [
-    { icon: FaFacebook, href: '#', label: 'Facebook' },
-    { icon: FaTwitter, href: '#', label: 'Twitter' },
-    { icon: FaYoutube, href: '#', label: 'YouTube' },
-    { icon: FaInstagram, href: '#', label: 'Instagram' },
-    { icon: FaLinkedin, href: '#', label: 'LinkedIn' },
+    { icon: FaFacebook, href: 'https://www.facebook.com/thinkinindia/', label: 'Facebook' },
+    { icon: FaYoutube, href: 'https://www.youtube.com/@thinkinlab', label: 'YouTube' },
+    { icon: FaInstagram, href: 'https://www.instagram.com/thinkin_lab/', label: 'Instagram' },
+    { icon: FaLinkedin, href: 'https://in.linkedin.com/company/thinkin-lab', label: 'LinkedIn' },
   ];
 
   return (
