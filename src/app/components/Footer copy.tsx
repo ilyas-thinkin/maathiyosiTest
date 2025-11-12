@@ -107,6 +107,34 @@ export default function Footer() {
             </motion.div>
 
             {/* Services Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="space-y-8"
+            >
+              <div>
+                <h3 className="text-xl font-bold text-white mb-6 relative inline-block">
+                  Our Services - Thinkin Lab
+                  <span className="absolute -bottom-2 left-0 w-16 h-1 bg-white rounded-full"></span>
+                </h3>
+              </div>
+              <ul className="space-y-4">
+                {footerLinks.services.map((link, index) => (
+                  <li key={index}>
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-white/90 hover:text-white transition-all duration-200 flex items-center group text-lg"
+                    >
+                      <FaArrowRight className="w-4 h-4 mr-3 opacity-0 group-hover:opacity-100 transition-all duration-200 transform group-hover:translate-x-1" />
+                      {link.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
 
             {/* Newsletter + Social Section */}
             <motion.div
