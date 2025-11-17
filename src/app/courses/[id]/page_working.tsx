@@ -10,7 +10,7 @@ type Lesson = {
   id: string;
   title: string;
   video_url?: string;
-  lesson_order?: number;
+  lesson_order?: number; // Add lesson_order field
 };
 
 type Course = {
@@ -26,7 +26,6 @@ type Course = {
 export default function CourseDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-
   const [course, setCourse] = useState<Course | null>(null);
   const [courseLoading, setCourseLoading] = useState(true);
   const [userLoading, setUserLoading] = useState(true);
@@ -41,7 +40,8 @@ export default function CourseDetailsPage() {
       try {
         const res = await fetch(`/api/admin/fetch-mux-details-course?id=${params.id}`);
         const data = await res.json();
-
+        
+        // Sort lessons by lesson_order if it exists
         if (data.lessons && Array.isArray(data.lessons)) {
           data.lessons.sort((a: Lesson, b: Lesson) => {
             const orderA = a.lesson_order ?? 999;
@@ -49,7 +49,7 @@ export default function CourseDetailsPage() {
             return orderA - orderB;
           });
         }
-
+        
         setCourse(data.error ? null : data);
       } catch (err) {
         console.error(err);
@@ -67,8 +67,10 @@ export default function CourseDetailsPage() {
     const checkUser = async () => {
       setUserLoading(true);
       try {
-        const { data: authData } = await supabase.auth.getUser();
-        setUser(authData?.user || null);
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        setUser(user);
       } catch (err) {
         console.error("Error checking user session:", err);
         setUser(null);
@@ -76,41 +78,13 @@ export default function CourseDetailsPage() {
         setUserLoading(false);
       }
     };
-
     checkUser();
   }, []);
-
-  // ==========================
-  // CHECK IF USER HAS PURCHASED
-  // ==========================
-  useEffect(() => {
-    const checkPurchase = async () => {
-      if (!user || !course) return;
-
-      const { data, error } = await supabase
-        .from("purchase")
-        .select("id, status")
-        .eq("user_id", user.id)
-        .eq("course_id", course.id)
-        .maybeSingle();
-
-      if (data && data.status === "success") {
-        router.push(`/courses/${course.id}/lessons`);
-      }
-    };
-
-    checkPurchase();
-  }, [user, course]);
 
   // Show loader while either course or user is loading
   if (courseLoading || userLoading) return <ThinkingRobotLoader />;
 
-  if (!course)
-    return (
-      <p className="p-6 font-semibold text-red-600 text-center">
-        Course not found.
-      </p>
-    );
+  if (!course) return <p className="p-6 font-semibold text-red-600">Course not found.</p>;
 
   return (
     <motion.div
@@ -119,6 +93,7 @@ export default function CourseDetailsPage() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
     >
+      {/* Header */}
       <motion.h1
         className="text-5xl font-extrabold mb-6 text-[#de5252] leading-tight"
         initial={{ y: -50, opacity: 0 }}
@@ -128,6 +103,7 @@ export default function CourseDetailsPage() {
         {course.title}
       </motion.h1>
 
+      {/* Thumbnail */}
       {course.thumbnail_url && (
         <motion.img
           src={course.thumbnail_url}
@@ -139,6 +115,7 @@ export default function CourseDetailsPage() {
         />
       )}
 
+      {/* Course Info */}
       <motion.div
         className="mb-6 space-y-2 text-lg"
         initial={{ opacity: 0, y: 20 }}
@@ -146,53 +123,59 @@ export default function CourseDetailsPage() {
         transition={{ delay: 0.4, duration: 0.6 }}
       >
         {course.description && <p className="text-gray-800">{course.description}</p>}
-        {course.category && (
-          <p className="font-semibold text-[#a63b3b]">
-            Category: {course.category}
-          </p>
-        )}
-        {course.price !== undefined && (
-          <p className="font-semibold text-[#a67c3b]">
-            Price: ₹{course.price}
-          </p>
-        )}
+        {course.category && <p className="font-semibold text-[#a63b3b]">Category: {course.category}</p>}
+        {course.price !== undefined && <p className="font-semibold text-[#a67c3b]">Price: ₹{course.price}</p>}
       </motion.div>
 
-      <h2 className="text-3xl font-bold mb-4 text-[#de5252]">Course Topics</h2>
-      <ul className="space-y-4 mb-8">
-        {course.lessons?.length ? (
-          course.lessons.map((lesson, i) => (
-            <motion.li
-              key={lesson.id}
-              className="p-4 rounded-xl bg-white shadow-md border-l-4 border-[#de5252]"
-              whileHover={{ scale: 1.03 }}
-            >
-              {i + 1}. {lesson.title}
-            </motion.li>
-          ))
-        ) : (
-          <li className="text-gray-500">No topics available.</li>
-        )}
-      </ul>
+      {/* Lessons */}
+      <motion.div
+        className="mb-8"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: 0.1 } },
+        }}
+      >
+        <h2 className="text-3xl font-bold mb-4 text-[#de5252]">Course Topics</h2>
+        <ul className="space-y-4">
+          {course.lessons && course.lessons.length > 0 ? (
+            course.lessons.map((lesson, index) => (
+              <motion.li
+                key={lesson.id}
+                className="p-4 rounded-xl bg-white shadow-md hover:shadow-2xl cursor-pointer font-medium border-l-4 border-[#de5252] hover:bg-[#ffe5e5] transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ scale: 1.03 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                {index + 1}. {lesson.title}
+              </motion.li>
+            ))
+          ) : (
+            <li className="text-gray-500">No topics available.</li>
+          )}
+        </ul>
+      </motion.div>
 
-      {/* PURCHASE LOGIC */}
+      {/* Enroll / Login Button */}
       {user ? (
         <motion.button
-          onClick={() =>
-            router.push(
-              `/purchase?course_id=${course.id}&amount=${course.price}`
-            )
-          }
-          className="w-full py-5 rounded-3xl text-white font-bold bg-[#de5252] hover:bg-[#f66] shadow-xl text-2xl"
+          onClick={() => router.push(`/courses/${course.id}/lessons`)}
+          className="w-full py-5 rounded-3xl text-white font-bold bg-[#de5252] hover:bg-[#f66] shadow-xl hover:shadow-2xl transform transition-all duration-300 text-2xl"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          Purchase Now
+          Enroll Now
         </motion.button>
       ) : (
         <motion.button
           onClick={() => router.push(`/login?redirect=/courses/${course.id}`)}
-          className="w-full py-5 rounded-3xl text-white font-bold bg-indigo-500 hover:bg-indigo-600 shadow-xl text-2xl"
+          className="w-full py-5 rounded-3xl text-white font-bold bg-indigo-500 hover:bg-indigo-600 shadow-xl hover:shadow-2xl transform transition-all duration-300 text-2xl"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
