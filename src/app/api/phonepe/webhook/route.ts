@@ -1,8 +1,10 @@
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getPhonePeToken } from "../_token";
 
-export const runtime = "nodejs";
+
 
 export async function POST(req: Request) {
   try {
