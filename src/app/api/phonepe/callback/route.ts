@@ -212,21 +212,20 @@ async function getPhonePeAccessToken(): Promise<string> {
   const clientSecret = process.env.PHONEPE_CLIENT_SECRET!;
   const clientVersion = process.env.PHONEPE_CLIENT_VERSION || "1";
 
-  // PhonePe V2 requires parameters as query string
-  const params = new URLSearchParams({
+  // PhonePe v2 requires form data in body (as per customer support example)
+  const formBody = new URLSearchParams({
     client_id: clientId,
     client_version: clientVersion,
     client_secret: clientSecret,
     grant_type: "client_credentials"
   });
 
-  const fullUrl = `${tokenUrl}?${params.toString()}`;
-
-  const response = await fetch(fullUrl, {
+  const response = await fetch(tokenUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
+    body: formBody.toString(),
   });
 
   if (!response.ok) {

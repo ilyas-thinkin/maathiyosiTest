@@ -201,23 +201,27 @@ async function getPhonePeAccessToken(): Promise<string> {
     hasClientSecret: !!clientSecret
   });
 
-  // PhonePe V2 requires parameters as query string
-  const params = new URLSearchParams({
+  // PhonePe v2 requires form data in body (as per customer support example)
+  const formBody = new URLSearchParams({
     client_id: clientId,
     client_version: clientVersion,
     client_secret: clientSecret,
     grant_type: "client_credentials"
   });
 
-  const fullUrl = `${tokenUrl}?${params.toString()}`;
+  console.log("OAuth request to:", tokenUrl);
+  console.log("Form data (masked):", {
+    client_id: clientId.substring(0, 10) + "...",
+    client_version: clientVersion,
+    grant_type: "client_credentials"
+  });
 
-  console.log("OAuth request URL (with masked secret):", fullUrl.replace(clientSecret, "***"));
-
-  const response = await fetch(fullUrl, {
+  const response = await fetch(tokenUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
+    body: formBody.toString(),
   });
 
   const responseText = await response.text();
