@@ -1,69 +1,76 @@
+// src/app/purchase/PurchaseClient.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { supabase } from "../components/lib/supabaseClient";
-import ThinkingRobotLoader from "../components/RobotThinkingLoader";
+import { useState } from "react";
 
-export default function PurchaseClient() {
-  const params = useSearchParams();
-  const router = useRouter();
+interface Props {
+  courseId: string;
+  userId: string;
+  amountInRupees: number;
+}
 
-  const course_id = params.get("course_id");
-  const amount = params.get("amount");
+export default function PurchaseClient({
+  courseId,
+  userId,
+  amountInRupees,
+}: Props) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const [loading, setLoading] = useState(true);
+  async function startPayment() {
+    setLoading(true);
+    setError("");
 
-  useEffect(() => {
-    const startPurchase = async () => {
-      if (!course_id || !amount) {
-        alert("Invalid purchase link.");
-        router.push("/");
-        return;
-      }
+    try {
+      const amountPaise = Math.round(amountInRupees * 100);
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const orderRes = await fetch("/api/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: amountPaise,
+          user_id: userId,
+          course_id: courseId,
+          currency: "INR",
+        }),
+      });
 
-      if (!user) {
-        router.push(`/login?redirect=/purchase?course_id=${course_id}&amount=${amount}`);
-        return;
-      }
+      const orderJson = await orderRes.json();
+      if (!orderRes.ok) throw new Error(orderJson.error);
 
-      try {
-        const res = await fetch("/api/phonepe/initiate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            course_id,
-            amount,
-            user_id: user.id,
-          }),
-        });
+      const { merchantOrderId } = orderJson;
 
-        const data = await res.json();
-        if (!data.success) {
-          alert("Failed to initiate payment. Try again.");
-          router.push(`/courses/${course_id}`);
-          return;
-        }
+      const initRes = await fetch("/api/phonepe/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          merchantOrderId,
+          amount: amountPaise,
+        }),
+      });
 
-        window.location.href = data.redirectUrl;
-      } catch (err) {
-        alert("Something went wrong. Try again.");
-        router.push(`/courses/${course_id}`);
-      } finally {
-        setLoading(false);
-      }
-    };
+      const initJson = await initRes.json();
+      if (!initRes.ok) throw new Error(initJson.error);
 
-    startPurchase();
-  }, [course_id, amount, router]);
+      window.location.href = initJson.paymentLink;
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-white">
-      <ThinkingRobotLoader />
-    </div>
+    <>
+      <button
+        onClick={startPayment}
+        disabled={loading}
+        className="px-6 py-3 bg-blue-600 text-white rounded-lg"
+      >
+        {loading ? "Processing…" : `Pay ₹${amountInRupees}`}
+      </button>
+
+      {error && <p className="text-red-600 mt-3">{error}</p>}
+    </>
   );
 }

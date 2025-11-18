@@ -1,84 +1,126 @@
-export const runtime = "nodejs";
-
-import { NextResponse } from "next/server";
-import { getPhonePeToken } from "../_token";
+// app/api/phonepe/initiate/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-
-
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { user_id, course_id, amount } = body;
+    const { courseId, amount, userId, userEmail, userName } = await req.json();
 
-    if (!user_id || !course_id || !amount) {
-      return NextResponse.json({ success: false, message: "Missing fields" }, { status: 400 });
+    if (!courseId || !amount || !userId) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
-    // supabase (server)
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { persistSession: false } }
-    );
+    // Generate unique transaction ID
+    const transactionId = `TXN_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+    const orderId = `ORDER_${Date.now()}`;
 
-    const merchantOrderId = `ORD_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-    // insert pending payment
-    const { error } = await supabase.from("purchase").insert({
-      user_id,
-      course_id,
-      amount,
-      currency: "INR",
-      status: "pending",
-      merchant_txn_id: merchantOrderId
+    // Get auth token
+    const authResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/phonepe/auth`, {
+      method: "POST",
     });
 
-    if (error) {
-      return NextResponse.json({ success: false, message: "DB Error" }, { status: 500 });
+    if (!authResponse.ok) {
+      throw new Error("Failed to get PhonePe auth token");
     }
 
-    // get token
-    const token = await getPhonePeToken();
+    const authData = await authResponse.json();
+    const accessToken = authData.access_token;
 
-    const payload = {
-      merchantId: process.env.PHONEPE_MERCHANT_ID!,
-      merchantOrderId,
-      amount: amount * 100, // paise
-      redirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/payment-success?order=${merchantOrderId}`,
-      callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/phonepe/webhook`,
-      paymentInstrument: {
-        type: "PAY_PAGE"
-      }
+    // Create purchase record in database
+    const { data: purchaseData, error: dbError } = await supabase
+      .from("purchase")
+      .insert({
+        user_id: userId,
+        course_id: courseId,
+        amount: amount,
+        status: "pending",
+        transaction_id: transactionId,
+        order_id: orderId,
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error("Database error:", dbError);
+      return NextResponse.json(
+        { error: "Failed to create purchase record" },
+        { status: 500 }
+      );
+    }
+
+    // Create payment request for PhonePe
+    const paymentPayload = {
+      merchantId: process.env.PHONEPE_MERCHANT_ID,
+      transactionId: transactionId,
+      amount: amount * 100, // Convert to paise
+      merchantOrderId: orderId,
+      message: `Payment for course`,
+      mobileNumber: "9999999999", // Can be replaced with user's mobile if available
+      email: userEmail || "",
+      shortName: userName || "User",
+      subMerchant: process.env.PHONEPE_MERCHANT_ID,
+      redirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/phonepe/callback`,
+      redirectMode: "POST",
+      callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/phonepe/callback`,
     };
 
-    const resp = await fetch(process.env.PHONEPE_PAY_URL!, {
+    const paymentResponse = await fetch(process.env.PHONEPE_PAY_URL!, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
+        Authorization: `Bearer ${accessToken}`,
+        "X-VERIFY": generateChecksum(paymentPayload),
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(paymentPayload),
     });
 
-    const data = await resp.json();
+    const paymentData = await paymentResponse.json();
 
-    if (!data?.data?.redirectUrl) {
-      return NextResponse.json({
-        success: false,
-        message: "PhonePe create payment failed",
-        data
-      }, { status: 500 });
+    if (!paymentResponse.ok || !paymentData.success) {
+      // Update purchase status to failed
+      await supabase
+        .from("purchase")
+        .update({ status: "failed" })
+        .eq("id", purchaseData.id);
+
+      return NextResponse.json(
+        { error: "Failed to initiate payment", details: paymentData },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({
       success: true,
-      redirectUrl: data.data.redirectUrl,
-      merchant_txn_id: merchantOrderId
+      paymentUrl: paymentData.data.instrumentResponse.redirectInfo.url,
+      transactionId: transactionId,
+      orderId: orderId,
+      purchaseId: purchaseData.id,
     });
-
-  } catch (err: any) {
-    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+  } catch (error: any) {
+    console.error("PhonePe Initiate Error:", error);
+    return NextResponse.json(
+      { error: "Internal server error", message: error.message },
+      { status: 500 }
+    );
   }
+}
+
+// Generate checksum for PhonePe verification
+function generateChecksum(payload: any): string {
+  const clientSecret = process.env.PHONEPE_CLIENT_SECRET!;
+  const dataString = JSON.stringify(payload);
+  const hash = crypto
+    .createHmac("sha256", clientSecret)
+    .update(dataString)
+    .digest("hex");
+  return hash;
 }

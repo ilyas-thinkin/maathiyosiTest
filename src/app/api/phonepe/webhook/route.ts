@@ -1,72 +1,71 @@
-export const runtime = "nodejs";
-
+// src/app/api/phonepe/webhook/route.ts
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
-import { getPhonePeToken } from "../_token";
 
-
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: Request) {
   try {
     const raw = await req.text();
-    let json: any = {};
 
-    try { json = JSON.parse(raw); } catch {}
+    const signature =
+      req.headers.get("X-PHONEPE-SIGNATURE") ||
+      req.headers.get("x-verify") ||
+      req.headers.get("x-signature");
 
-    const merchantOrderId =
-      json["merchantOrderId"] ??
-      json["orderId"] ??
-      json?.data?.merchantOrderId;
+    const expected = crypto
+      .createHmac("sha256", process.env.PHONEPE_CLIENT_SECRET!)
+      .update(raw)
+      .digest("hex");
 
-    if (!merchantOrderId) {
-      return NextResponse.json({ success: false });
+    if (signature !== expected) {
+      return NextResponse.json(
+        { error: "Invalid signature" },
+        { status: 400 }
+      );
     }
 
-    // verify via status API
-    const token = await getPhonePeToken();
+    const body = JSON.parse(raw);
 
-    const statusUrl = `${process.env.PHONEPE_STATUS_URL!}/${merchantOrderId}/status`;
+    const merchantOrderId =
+      body?.merchantOrderId || body?.data?.merchantOrderId;
 
-    const resp = await fetch(statusUrl, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      }
-    });
+    const phonepeStatus =
+      body?.status || body?.data?.status;
 
-    const statusJson = await resp.json();
+    let mappedStatus = "failed"; // default
 
-    const state =
-      statusJson?.data?.state ??
-      statusJson?.data?.status ??
-      statusJson?.orderStatus;
-
-    const finalStatus =
-      ["SUCCESS", "COMPLETED", "PAID"].includes(String(state).toUpperCase())
-        ? "success"
-        : "failed";
-
-    // update database
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { persistSession: false } }
-    );
+    if (
+      phonepeStatus === "SUCCESS" ||
+      phonepeStatus === "PAYMENT_SUCCESS"
+    ) {
+      mappedStatus = "success";
+    } else if (
+      phonepeStatus === "PENDING" ||
+      phonepeStatus === "PAYMENT_PENDING"
+    ) {
+      mappedStatus = "pending";
+    }
 
     await supabase
       .from("purchase")
       .update({
-        status: finalStatus,
-        phonepe_txn_id: statusJson?.data?.transactionId ?? null,
-        raw_response: statusJson,
-        updated_at: new Date().toISOString()
+        status: mappedStatus,
+        phonepe_txn_id:
+          body?.data?.transactionId ||
+          body?.transactionId ||
+          null,
+        raw_response: body,
+        updated_at: new Date().toISOString(),
       })
-      .eq("merchant_txn_id", merchantOrderId);
+      .eq("merchant_order_id", merchantOrderId);
 
-    return NextResponse.json({ success: true });
-
-  } catch (err) {
-    return NextResponse.json({ success: false }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

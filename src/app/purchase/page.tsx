@@ -1,9 +1,8 @@
-export const dynamic = "force-dynamic";  // disable prerendering
-export const revalidate = 0;
+// src/app/purchase/page.tsx
+"use client";
 
-import PurchaseClient from "./PurchaseClient";
+import PurchasePage from "./PurchaseClient";
 
 export default function Page() {
-  // this is a server component — safe to export revalidate/dynamic
-  return <PurchaseClient />;
+  return <PurchasePage />;
 }

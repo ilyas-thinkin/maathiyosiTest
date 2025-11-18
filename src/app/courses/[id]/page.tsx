@@ -31,6 +31,8 @@ export default function CourseDetailsPage() {
   const [courseLoading, setCourseLoading] = useState(true);
   const [userLoading, setUserLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [hasPurchased, setHasPurchased] = useState(false);
+  const [checkingPurchase, setCheckingPurchase] = useState(true);
 
   // Fetch course data
   useEffect(() => {
@@ -80,37 +82,53 @@ export default function CourseDetailsPage() {
     checkUser();
   }, []);
 
-  // ==========================
-  // CHECK IF USER HAS PURCHASED
-  // ==========================
+  // Check if user has purchased the course
   useEffect(() => {
     const checkPurchase = async () => {
-      if (!user || !course) return;
+      if (!user || !course) {
+        setCheckingPurchase(false);
+        return;
+      }
 
-      const { data, error } = await supabase
-        .from("purchase")
-        .select("id, status")
-        .eq("user_id", user.id)
-        .eq("course_id", course.id)
-        .maybeSingle();
+      setCheckingPurchase(true);
+      try {
+        const { data, error } = await supabase
+          .from("purchase")
+          .select("id, status")
+          .eq("user_id", user.id)
+          .eq("course_id", course.id)
+          .maybeSingle();
 
-      if (data && data.status === "success") {
-        router.push(`/courses/${course.id}/lessons`);
+        if (data && data.status === "success") {
+          setHasPurchased(true);
+          // Automatically redirect to lessons if already purchased
+          router.push(`/courses/${course.id}/lessons`);
+        } else {
+          setHasPurchased(false);
+        }
+      } catch (err) {
+        console.error("Error checking purchase:", err);
+        setHasPurchased(false);
+      } finally {
+        setCheckingPurchase(false);
       }
     };
 
     checkPurchase();
-  }, [user, course]);
+  }, [user, course, router]);
 
-  // Show loader while either course or user is loading
-  if (courseLoading || userLoading) return <ThinkingRobotLoader />;
+  // Show loader while any data is loading
+  if (courseLoading || userLoading || checkingPurchase) {
+    return <ThinkingRobotLoader />;
+  }
 
-  if (!course)
+  if (!course) {
     return (
       <p className="p-6 font-semibold text-red-600 text-center">
         Course not found.
       </p>
     );
+  }
 
   return (
     <motion.div
@@ -132,7 +150,7 @@ export default function CourseDetailsPage() {
         <motion.img
           src={course.thumbnail_url}
           alt={course.title}
-          className="w-full h-36 object-cover rounded-xl shadow-lg mb-6"
+          className="w-full h-96 object-cover rounded-xl shadow-lg mb-6"
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.6 }}
@@ -152,7 +170,7 @@ export default function CourseDetailsPage() {
           </p>
         )}
         {course.price !== undefined && (
-          <p className="font-semibold text-[#a67c3b]">
+          <p className="font-semibold text-[#a67c3b] text-2xl">
             Price: ₹{course.price}
           </p>
         )}
@@ -165,9 +183,12 @@ export default function CourseDetailsPage() {
             <motion.li
               key={lesson.id}
               className="p-4 rounded-xl bg-white shadow-md border-l-4 border-[#de5252]"
-              whileHover={{ scale: 1.03 }}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 + i * 0.1 }}
+              whileHover={{ scale: 1.02 }}
             >
-              {i + 1}. {lesson.title}
+              <span className="font-semibold text-[#de5252]">{i + 1}.</span> {lesson.title}
             </motion.li>
           ))
         ) : (
@@ -177,18 +198,29 @@ export default function CourseDetailsPage() {
 
       {/* PURCHASE LOGIC */}
       {user ? (
-        <motion.button
-          onClick={() =>
-            router.push(
-              `/purchase?course_id=${course.id}&amount=${course.price}`
-            )
-          }
-          className="w-full py-5 rounded-3xl text-white font-bold bg-[#de5252] hover:bg-[#f66] shadow-xl text-2xl"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          Purchase Now
-        </motion.button>
+        hasPurchased ? (
+          <motion.button
+            onClick={() => router.push(`/courses/${course.id}/lessons`)}
+            className="w-full py-5 rounded-3xl text-white font-bold bg-green-600 hover:bg-green-700 shadow-xl text-2xl"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Access Course
+          </motion.button>
+        ) : (
+          <motion.button
+            onClick={() =>
+              router.push(
+                `/purchase?course_id=${course.id}&amount=${course.price}`
+              )
+            }
+            className="w-full py-5 rounded-3xl text-white font-bold bg-[#de5252] hover:bg-[#f66] shadow-xl text-2xl"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Purchase Now - ₹{course.price}
+          </motion.button>
+        )
       ) : (
         <motion.button
           onClick={() => router.push(`/login?redirect=/courses/${course.id}`)}
@@ -196,9 +228,15 @@ export default function CourseDetailsPage() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          Login / Sign Up
+          Login / Sign Up to Purchase
         </motion.button>
       )}
+
+      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+        <p className="text-sm text-gray-600 text-center">
+          🔒 Secure payment powered by PhonePe. Lifetime access to course content.
+        </p>
+      </div>
     </motion.div>
   );
 }

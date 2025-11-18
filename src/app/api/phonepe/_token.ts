@@ -1,44 +1,44 @@
-import qs from "querystring";
+// src/app/api/phonepe/_token.ts
+import { NextRequest, NextResponse } from "next/server";
 
-let cachedToken: { token: string; expiresAt: number } | null = null;
+let cachedToken: { access_token: string; expires_at: number } | null = null;
 
-export async function getPhonePeToken() {
-  const now = Date.now();
-
-  // return cached token if valid
-  if (cachedToken && cachedToken.expiresAt > now + 5000) {
-    return cachedToken.token;
-  }
-
-  const tokenUrl = process.env.PHONEPE_TOKEN_URL!;
+async function fetchToken() {
+  const url = process.env.PHONEPE_TOKEN_URL!;
   const clientId = process.env.PHONEPE_CLIENT_ID!;
   const clientSecret = process.env.PHONEPE_CLIENT_SECRET!;
 
-  const body = qs.stringify({
-    client_id: clientId,
-    client_secret: clientSecret,
-    grant_type: "client_credentials",
-    client_version: 1
-  });
+  const body = new URLSearchParams();
+  body.append("client_id", clientId);
+  body.append("client_secret", clientSecret);
+  body.append("grant_type", "client_credentials");
 
-  const resp = await fetch(tokenUrl, {
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
+    body: body.toString(),
   });
 
-  const data = await resp.json();
-
-  if (!resp.ok) {
-    throw new Error("Token error: " + JSON.stringify(data));
-  }
-
-  const token = data?.access_token ?? data?.accessToken;
+  const data = await res.json();
+  const expiresIn = Number(data.expires_in || 300);
 
   cachedToken = {
-    token,
-    expiresAt: Date.now() + (data?.expires_in ?? 3600) * 1000
+    access_token: data.access_token,
+    expires_at: Date.now() + expiresIn * 1000 - 5000,
   };
 
-  return token;
+  return cachedToken.access_token;
+}
+
+export async function GET(_: NextRequest) {
+  try {
+    if (cachedToken && cachedToken.expires_at > Date.now()) {
+      return NextResponse.json({ access_token: cachedToken.access_token });
+    }
+
+    const token = await fetchToken();
+    return NextResponse.json({ access_token: token });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }
