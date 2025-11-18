@@ -17,6 +17,10 @@ export default function UploadCourseForm() {
     lessons: [{ title: '', videoFile: null }]
   });
 
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
+
   const handleLessonChange = (index: number, field: keyof LessonInput, value: any) => {
     const updated = [...form.lessons];
     updated[index][field] = value;
@@ -39,12 +43,26 @@ export default function UploadCourseForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploading(true);
+    setUploadProgress(0);
 
     try {
+      // Calculate total steps
+      const totalSteps = 1 + (form.thumbnail ? 1 : 0) + form.lessons.filter(l => l.videoFile).length;
+      let completedSteps = 0;
+
       // ✅ Upload thumbnail if provided
+      if (form.thumbnail) {
+        setCurrentStep('Uploading thumbnail...');
+        await uploadThumbnail(form.thumbnail);
+        completedSteps++;
+        setUploadProgress((completedSteps / totalSteps) * 100);
+      }
+
       const thumbPath = form.thumbnail ? await uploadThumbnail(form.thumbnail) : null;
 
       // ✅ Insert course WITH PRICE
+      setCurrentStep('Creating course...');
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .insert({
@@ -58,11 +76,16 @@ export default function UploadCourseForm() {
         .single();
 
       if (courseError) throw courseError;
+      completedSteps++;
+      setUploadProgress((completedSteps / totalSteps) * 100);
 
       // ✅ Upload lessons
-      for (const lesson of form.lessons) {
-        if (!lesson.videoFile) continue;
-        const videoPath = await uploadVideo(lesson.videoFile);
+      const validLessons = form.lessons.filter(l => l.videoFile);
+      for (let i = 0; i < validLessons.length; i++) {
+        const lesson = validLessons[i];
+        setCurrentStep(`Uploading lesson ${i + 1} of ${validLessons.length}: ${lesson.title}`);
+
+        const videoPath = await uploadVideo(lesson.videoFile!);
 
         const { error: lessonError } = await supabase.from('course_lessons').insert({
           course_id: courseData.id,
@@ -71,8 +94,12 @@ export default function UploadCourseForm() {
         });
 
         if (lessonError) throw lessonError;
+
+        completedSteps++;
+        setUploadProgress((completedSteps / totalSteps) * 100);
       }
 
+      setCurrentStep('Upload complete!');
       alert('✅ Course uploaded successfully!');
       setForm({
         title: '',
@@ -84,7 +111,11 @@ export default function UploadCourseForm() {
       });
     } catch (err: any) {
       console.error('Upload error:', err);
-      alert('❌ Upload failed.');
+      alert('❌ Upload failed: ' + err.message);
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      setCurrentStep('');
     }
   };
 
@@ -202,12 +233,34 @@ export default function UploadCourseForm() {
         </button>
       </div>
 
+      {/* ✅ Progress Bar */}
+      {uploading && (
+        <div className="space-y-3">
+          <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-red-500 to-red-600 h-full transition-all duration-300 ease-out flex items-center justify-center text-xs text-white font-semibold"
+              style={{ width: `${uploadProgress}%` }}
+            >
+              {uploadProgress > 10 && `${Math.round(uploadProgress)}%`}
+            </div>
+          </div>
+          <p className="text-sm text-gray-600 text-center font-medium">
+            {currentStep}
+          </p>
+        </div>
+      )}
+
       {/* ✅ Submit Button */}
       <button
         type="submit"
-        className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-md transition duration-200"
+        disabled={uploading}
+        className={`w-full font-semibold py-3 px-6 rounded-md transition duration-200 ${
+          uploading
+            ? 'bg-gray-400 cursor-not-allowed text-gray-700'
+            : 'bg-red-500 hover:bg-red-600 text-white'
+        }`}
       >
-        Upload Course
+        {uploading ? 'Uploading...' : 'Upload Course'}
       </button>
     </form>
   );
