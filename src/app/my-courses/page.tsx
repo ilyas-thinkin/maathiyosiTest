@@ -23,18 +23,19 @@ export default function MyCoursesPage() {
       // ✅ Check if user is logged in
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.push("/student-login");
+        router.push("/login");
         return;
       }
 
-      // ✅ Get all purchases for this user
+      // ✅ Get all successful purchases for this user
       const { data: purchases, error: purchaseError } = await supabase
-        .from("purchases")
+        .from("purchase")
         .select("course_id")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .eq("status", "success");
 
       if (purchaseError) {
-        console.error(purchaseError);
+        console.error("Error fetching purchases:", purchaseError);
         setLoading(false);
         return;
       }
@@ -48,18 +49,28 @@ export default function MyCoursesPage() {
       // ✅ Extract course IDs
       const courseIds = purchases.map((p) => p.course_id);
 
-      // ✅ Fetch all courses the user purchased
-      const { data: courseData, error: courseError } = await supabase
-        .from("courses")
-        .select("id, title, thumbnail_url, description")
-        .in("id", courseIds);
+      // ✅ Fetch all courses the user purchased from courses_mux table
+      const coursesData: Course[] = [];
 
-      if (courseError) {
-        console.error(courseError);
-      } else {
-        setCourses(courseData || []);
+      for (const courseId of courseIds) {
+        try {
+          const res = await fetch(`/api/admin/fetch-mux-details-course?id=${courseId}`);
+          const data = await res.json();
+
+          if (!data.error && data.id) {
+            coursesData.push({
+              id: data.id,
+              title: data.title,
+              thumbnail_url: data.thumbnail_url || "/default-thumbnail.jpg",
+              description: data.description || "No description available"
+            });
+          }
+        } catch (err) {
+          console.error(`Error fetching course ${courseId}:`, err);
+        }
       }
 
+      setCourses(coursesData);
       setLoading(false);
     };
 

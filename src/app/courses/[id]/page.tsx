@@ -101,8 +101,6 @@ export default function CourseDetailsPage() {
 
         if (data && data.status === "success") {
           setHasPurchased(true);
-          // Automatically redirect to lessons if already purchased
-          router.push(`/courses/${course.id}/lessons`);
         } else {
           setHasPurchased(false);
         }
@@ -205,7 +203,7 @@ export default function CourseDetailsPage() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            Access Course
+            View Course
           </motion.button>
         ) : (
           <motion.button

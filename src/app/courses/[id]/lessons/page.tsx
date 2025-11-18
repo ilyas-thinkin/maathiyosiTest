@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "../../../components/lib/supabaseClient";
 import ThinkingRobotLoader from "../../../components/RobotThinkingLoader";
 
 // Dynamic import for React wrapper
@@ -27,21 +28,80 @@ type Course = {
 
 export default function CourseLessonsPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
   const [openLesson, setOpenLesson] = useState<string | null>(null);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
 
-  // Fetch course + lessons
+  // Check user authentication
   useEffect(() => {
-    if (!params?.id) return;
+    const checkAuth = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+
+        if (!user) {
+          // Not logged in, redirect to login
+          router.push(`/login?redirect=/courses/${params.id}/lessons`);
+        }
+      } catch (err) {
+        console.error("Auth check error:", err);
+        router.push(`/login?redirect=/courses/${params.id}/lessons`);
+      }
+    };
+
+    checkAuth();
+  }, [params.id, router]);
+
+  // Check if user has purchased the course
+  useEffect(() => {
+    const checkPurchase = async () => {
+      if (!user || !params?.id) {
+        setCheckingAccess(false);
+        return;
+      }
+
+      setCheckingAccess(true);
+      try {
+        const { data, error } = await supabase
+          .from("purchase")
+          .select("id, status")
+          .eq("user_id", user.id)
+          .eq("course_id", params.id)
+          .eq("status", "success")
+          .maybeSingle();
+
+        if (data) {
+          setHasAccess(true);
+        } else {
+          // User hasn't purchased, redirect to course details
+          router.push(`/courses/${params.id}`);
+        }
+      } catch (err) {
+        console.error("Purchase check error:", err);
+        router.push(`/courses/${params.id}`);
+      } finally {
+        setCheckingAccess(false);
+      }
+    };
+
+    checkPurchase();
+  }, [user, params.id, router]);
+
+  // Fetch course + lessons (only if user has access)
+  useEffect(() => {
+    if (!params?.id || !hasAccess) return;
 
     const fetchCourse = async () => {
       setLoading(true);
       try {
         const res = await fetch(`/api/admin/fetch-mux-details-course?id=${params.id}`);
         const data = await res.json();
-        
+
         // Sort lessons by lesson_order if it exists
         if (data.lessons && Array.isArray(data.lessons)) {
           data.lessons.sort((a: Lesson, b: Lesson) => {
@@ -50,7 +110,7 @@ export default function CourseLessonsPage() {
             return orderA - orderB;
           });
         }
-        
+
         setCourse(data.error ? null : data);
       } catch (err) {
         console.error(err);
@@ -61,7 +121,7 @@ export default function CourseLessonsPage() {
     };
 
     fetchCourse();
-  }, [params?.id]);
+  }, [params?.id, hasAccess]);
 
   // Extract Mux playback ID from URL
   const extractMuxPlaybackId = (url: string | undefined): string | null => {
@@ -70,7 +130,27 @@ export default function CourseLessonsPage() {
     return match ? match[1] : null;
   };
 
-  if (loading) return <ThinkingRobotLoader />;
+  // Show loader while checking access or loading course
+  if (checkingAccess || loading) return <ThinkingRobotLoader />;
+
+  // If no access after check, show unauthorized message (shouldn't reach here due to redirects)
+  if (!hasAccess) {
+    return (
+      <div className="max-w-2xl mx-auto p-10 text-center">
+        <h1 className="text-3xl font-bold text-red-600 mb-4">Access Denied</h1>
+        <p className="text-gray-700 mb-6">
+          You need to purchase this course to access the lessons.
+        </p>
+        <button
+          onClick={() => router.push(`/courses/${params.id}`)}
+          className="px-6 py-3 bg-[#de5252] text-white rounded-lg hover:bg-[#f66]"
+        >
+          View Course Details
+        </button>
+      </div>
+    );
+  }
+
   if (!course) return <p className="p-6 font-semibold text-red-600">Course not found.</p>;
 
   return (
