@@ -140,6 +140,21 @@ export default function Dashboard() {
               <p>🏫 {user.school_or_job || "Not provided"}</p>
               
 
+              <div className="flex flex-col gap-3 mt-6">
+                <button
+                  onClick={() => router.push("/courses")}
+                  className="w-full bg-[#de5252] text-white px-5 py-3 rounded-lg shadow-lg hover:bg-[#f66] transition font-semibold"
+                >
+                  View All Courses
+                </button>
+                <button
+                  onClick={() => router.push("/my-courses")}
+                  className="w-full bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg hover:bg-green-700 transition font-semibold"
+                >
+                  My Courses
+                </button>
+              </div>
+
               <div className="flex justify-center gap-4 mt-4">
                 <button
                   onClick={() => setEditing(true)}

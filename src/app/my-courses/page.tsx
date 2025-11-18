@@ -20,9 +20,14 @@ export default function MyCoursesPage() {
 
   useEffect(() => {
     const fetchMyCourses = async () => {
+      console.log("My Courses: Starting to fetch courses...");
+
       // ✅ Check if user is logged in
       const { data: { user } } = await supabase.auth.getUser();
+      console.log("My Courses: User check result:", user ? "Logged in" : "Not logged in");
+
       if (!user) {
+        console.log("My Courses: No user, redirecting to login");
         router.push("/login");
         return;
       }
@@ -34,6 +39,8 @@ export default function MyCoursesPage() {
         .eq("user_id", user.id)
         .eq("status", "success");
 
+      console.log("My Courses: Purchases query result:", { purchases, purchaseError });
+
       if (purchaseError) {
         console.error("Error fetching purchases:", purchaseError);
         setLoading(false);
@@ -41,6 +48,7 @@ export default function MyCoursesPage() {
       }
 
       if (!purchases || purchases.length === 0) {
+        console.log("My Courses: No purchases found");
         setCourses([]);
         setLoading(false);
         return;
@@ -48,12 +56,14 @@ export default function MyCoursesPage() {
 
       // ✅ Extract course IDs
       const courseIds = purchases.map((p) => p.course_id);
+      console.log("My Courses: Course IDs:", courseIds);
 
       // ✅ Fetch all courses the user purchased from courses_mux table
       const coursesData: Course[] = [];
 
       for (const courseId of courseIds) {
         try {
+          console.log(`My Courses: Fetching course details for ${courseId}`);
           const res = await fetch(`/api/admin/fetch-mux-details-course?id=${courseId}`);
           const data = await res.json();
 
@@ -70,6 +80,7 @@ export default function MyCoursesPage() {
         }
       }
 
+      console.log("My Courses: Final courses data:", coursesData);
       setCourses(coursesData);
       setLoading(false);
     };
