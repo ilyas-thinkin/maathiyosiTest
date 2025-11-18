@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { supabase } from "../components/lib/supabaseClient";
 import ThinkingRobotLoader from "../components/RobotThinkingLoader";
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const transactionId = searchParams.get("transaction_id");
@@ -150,5 +150,13 @@ export default function PaymentSuccessPage() {
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={<ThinkingRobotLoader />}>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
