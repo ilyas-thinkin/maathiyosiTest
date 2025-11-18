@@ -169,15 +169,15 @@ export async function GET(req: NextRequest) {
  * Requires OAuth token for authentication
  */
 async function checkPaymentStatusV2(merchantOrderId: string): Promise<any> {
-  const statusUrl = process.env.PHONEPE_STATUS_URL!;
+  const statusBaseUrl = process.env.PHONEPE_STATUS_URL!;
 
   // Get OAuth token
   const accessToken = await getPhonePeAccessToken();
 
-  // V2 Status API endpoint
-  const url = `${statusUrl}/${merchantOrderId}`;
+  // V2 Status API endpoint: /apis/pg/checkout/v2/order/{merchantOrderId}/status
+  const url = `${statusBaseUrl}/${merchantOrderId}/status`;
 
-  console.log("Checking V2 payment status for order:", merchantOrderId);
+  console.log("Checking V2 payment status for order:", merchantOrderId, "URL:", url);
 
   const response = await fetch(url, {
     method: "GET",
@@ -210,22 +210,23 @@ async function getPhonePeAccessToken(): Promise<string> {
   const tokenUrl = process.env.PHONEPE_TOKEN_URL!;
   const clientId = process.env.PHONEPE_CLIENT_ID!;
   const clientSecret = process.env.PHONEPE_CLIENT_SECRET!;
+  const clientVersion = process.env.PHONEPE_CLIENT_VERSION || "1";
 
-  const clientVersion = process.env.PHONEPE_CLIENT_VERSION || "1.0";
-
-  const body = new URLSearchParams({
-    grant_type: "client_credentials",
+  // PhonePe V2 requires parameters as query string
+  const params = new URLSearchParams({
     client_id: clientId,
+    client_version: clientVersion,
     client_secret: clientSecret,
-    client_version: clientVersion, // Required by PhonePe V2 API
+    grant_type: "client_credentials"
   });
 
-  const response = await fetch(tokenUrl, {
+  const fullUrl = `${tokenUrl}?${params.toString()}`;
+
+  const response = await fetch(fullUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: body.toString(),
   });
 
   if (!response.ok) {
