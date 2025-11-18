@@ -85,7 +85,8 @@ export async function POST(req: NextRequest) {
       paymentFlow: {
         type: "PG_CHECKOUT",
         merchantUrls: {
-          redirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/phonepe/callback`
+          // Include merchantOrderId in redirect URL so callback can identify the transaction
+          redirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/api/phonepe/callback?merchantOrderId=${merchantOrderId}`
         }
       },
       expireAfter: 1800, // 30 minutes

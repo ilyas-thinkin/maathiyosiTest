@@ -113,13 +113,23 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
+
+  // Log all query parameters to debug
+  console.log("PhonePe V2 GET redirect - All params:", Object.fromEntries(searchParams.entries()));
+  console.log("Full URL:", req.url);
+
+  // Try multiple possible parameter names
   const merchantOrderId = searchParams.get("merchantOrderId") ||
                           searchParams.get("orderId") ||
-                          searchParams.get("transactionId");
+                          searchParams.get("transactionId") ||
+                          searchParams.get("merchantTransactionId") ||
+                          searchParams.get("order_id") ||
+                          searchParams.get("transaction_id");
 
-  console.log("PhonePe V2 GET redirect:", Object.fromEntries(searchParams.entries()));
+  console.log("Extracted merchantOrderId:", merchantOrderId);
 
   if (!merchantOrderId) {
+    console.error("No merchant order ID found in callback. Available params:", Array.from(searchParams.keys()));
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_BASE_URL}/payment-failure?message=Invalid+transaction`
     );
