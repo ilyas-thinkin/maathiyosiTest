@@ -189,33 +189,35 @@ async function getPhonePeAccessToken(): Promise<string> {
   const tokenUrl = process.env.PHONEPE_TOKEN_URL!;
   const clientId = process.env.PHONEPE_CLIENT_ID!;
   const clientSecret = process.env.PHONEPE_CLIENT_SECRET!;
+  const clientVersion = process.env.PHONEPE_CLIENT_VERSION || "1";
 
   console.log("Requesting PhonePe OAuth token...", {
     tokenUrl,
     clientIdLength: clientId?.length,
     clientSecretLength: clientSecret?.length,
+    clientVersion,
     hasTokenUrl: !!tokenUrl,
     hasClientId: !!clientId,
     hasClientSecret: !!clientSecret
   });
 
-  const clientVersion = process.env.PHONEPE_CLIENT_VERSION || "1.0";
-
-  const body = new URLSearchParams({
-    grant_type: "client_credentials",
+  // PhonePe V2 requires parameters as query string
+  const params = new URLSearchParams({
     client_id: clientId,
+    client_version: clientVersion,
     client_secret: clientSecret,
-    client_version: clientVersion, // Required by PhonePe V2 API
+    grant_type: "client_credentials"
   });
 
-  console.log("OAuth request body:", body.toString());
+  const fullUrl = `${tokenUrl}?${params.toString()}`;
 
-  const response = await fetch(tokenUrl, {
+  console.log("OAuth request URL (with masked secret):", fullUrl.replace(clientSecret, "***"));
+
+  const response = await fetch(fullUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: body.toString(),
   });
 
   const responseText = await response.text();
@@ -234,6 +236,7 @@ async function getPhonePeAccessToken(): Promise<string> {
       credentials: {
         clientId: clientId,
         clientIdMasked: clientId ? `${clientId.substring(0, 10)}...` : 'missing',
+        clientVersion: clientVersion,
         tokenUrl: tokenUrl
       }
     });
