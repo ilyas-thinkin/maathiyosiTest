@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
 
   if (!merchantOrderId) {
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/payment/failed?message=Invalid+transaction`
+      `${process.env.NEXT_PUBLIC_BASE_URL}/payment-failure?message=Invalid+transaction`
     );
   }
 
@@ -149,17 +149,17 @@ export async function GET(req: NextRequest) {
 
     if (updateStatus === "success") {
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?transaction_id=${merchantOrderId}`
+        `${process.env.NEXT_PUBLIC_BASE_URL}/payment-success?transaction_id=${merchantOrderId}`
       );
     } else {
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/payment/failed?transaction_id=${merchantOrderId}`
+        `${process.env.NEXT_PUBLIC_BASE_URL}/payment-failure?transaction_id=${merchantOrderId}`
       );
     }
   } catch (error) {
     console.error("Error checking V2 payment status:", error);
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/payment/failed?transaction_id=${merchantOrderId}`
+      `${process.env.NEXT_PUBLIC_BASE_URL}/payment-failure?transaction_id=${merchantOrderId}`
     );
   }
 }
