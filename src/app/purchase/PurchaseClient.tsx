@@ -27,6 +27,7 @@ export default function PurchaseClient(props: Props = {}) {
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
   const [courseTitle, setCourseTitle] = useState("");
+  const [courseDescription, setCourseDescription] = useState("");
 
   // Derive data from search params (if props are not provided)
   useEffect(() => {
@@ -96,6 +97,7 @@ export default function PurchaseClient(props: Props = {}) {
 
         if (!data.error) {
           if (!courseTitle && data.title) setCourseTitle(data.title);
+          if (!courseDescription && data.description) setCourseDescription(data.description);
           if (amountInRupees === null && typeof data.price === "number") {
             setAmountInRupees(data.price);
           }
@@ -162,102 +164,103 @@ export default function PurchaseClient(props: Props = {}) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#fff5f5] to-[#ffe5e5] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#fff5f5] via-[#ffe5e5] to-[#ffd5d5] flex items-center justify-center p-4 sm:p-6">
       <motion.div
-        className="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
+        className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
       >
         {/* Header Section */}
         <motion.div
-          className="bg-gradient-to-r from-[#de5252] to-[#f66] p-8 text-white text-center"
-          initial={{ y: -50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
+          className="bg-gradient-to-r from-[#de5252] to-[#f66] p-6 sm:p-8 text-white text-center relative overflow-hidden"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          <motion.div
-            className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4"
-            whileHover={{ scale: 1.1, rotate: 360 }}
-            transition={{ duration: 0.6 }}
-          >
-            <ShoppingCart size={40} />
-          </motion.div>
-          <h1 className="text-3xl font-bold mb-2">Complete Your Purchase</h1>
-          <p className="text-white/90 text-sm">Secure payment powered by PhonePe</p>
+          {/* Background decoration */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full -translate-y-20 translate-x-20"></div>
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white rounded-full translate-y-16 -translate-x-16"></div>
+          </div>
+
+          <div className="relative z-10">
+            <motion.div
+              className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4"
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+            >
+              <ShoppingCart className="w-8 h-8 sm:w-10 sm:h-10" />
+            </motion.div>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Complete Your Purchase</h1>
+            <p className="text-white/90 text-xs sm:text-sm">Secure checkout powered by PhonePe</p>
+          </div>
         </motion.div>
 
         {/* Content Section */}
-        <div className="p-8 space-y-6">
-          {/* Course Details */}
+        <div className="p-6 sm:p-8 space-y-6">
+          {/* Course Information Card */}
           {courseTitle && (
             <motion.div
-              className="bg-[#fff5f5] rounded-2xl p-6 border-2 border-[#de5252]/20"
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
+              className="bg-gradient-to-br from-[#fff5f5] to-[#ffe5e5] rounded-2xl p-6 border border-[#de5252]/20 shadow-sm"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.5 }}
             >
-              <h3 className="text-sm font-semibold text-gray-600 mb-2">Course</h3>
-              <p className="text-xl font-bold text-[#de5252]">{courseTitle}</p>
-            </motion.div>
-          )}
-
-          {/* User Details */}
-          {userName && (
-            <motion.div
-              className="space-y-3"
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.4, duration: 0.5 }}
-            >
-              <div className="flex items-center gap-3 text-gray-700">
-                <div className="w-10 h-10 bg-[#de5252]/10 rounded-full flex items-center justify-center">
-                  <span className="text-[#de5252] font-bold">👤</span>
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-10 h-10 bg-[#de5252] rounded-xl flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-xl">📚</span>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Student</p>
-                  <p className="font-semibold">{userName}</p>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Course</p>
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#de5252] leading-tight">{courseTitle}</h2>
                 </div>
               </div>
-              {userEmail && (
-                <div className="flex items-center gap-3 text-gray-700">
-                  <div className="w-10 h-10 bg-[#de5252]/10 rounded-full flex items-center justify-center">
-                    <span className="text-[#de5252] font-bold">📧</span>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Email</p>
-                    <p className="font-semibold text-sm">{userEmail}</p>
-                  </div>
-                </div>
+
+              {courseDescription && (
+                <p className="text-sm text-gray-600 leading-relaxed mt-3 pl-13">
+                  {courseDescription}
+                </p>
               )}
             </motion.div>
           )}
 
-          {/* Amount Display */}
+          {/* Price Card */}
           <motion.div
-            className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border-2 border-green-200"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.5 }}
+            className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200 shadow-sm"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
           >
-            <p className="text-sm text-gray-600 mb-1">Total Amount</p>
-            <p className="text-4xl font-bold text-green-600">₹{displayAmount}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Total Amount</p>
+                <p className="text-4xl sm:text-5xl font-bold text-green-600">₹{displayAmount}</p>
+              </div>
+              <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center">
+                <span className="text-3xl">💰</span>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-green-200">
+              <p className="text-xs text-gray-600">✓ Lifetime access included</p>
+            </div>
           </motion.div>
 
           {/* Payment Button */}
           <motion.button
             onClick={startPayment}
             disabled={loading || !isReadyForPayment}
-            className={`w-full py-4 rounded-2xl font-bold text-xl shadow-lg transition-all flex items-center justify-center gap-3 ${
+            className={`w-full py-5 rounded-2xl font-bold text-lg sm:text-xl shadow-lg transition-all flex items-center justify-center gap-3 ${
               loading || !isReadyForPayment
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : "bg-gradient-to-r from-[#de5252] to-[#f66] text-white hover:shadow-2xl hover:scale-105"
+                : "bg-gradient-to-r from-[#de5252] to-[#f66] text-white hover:shadow-2xl hover:from-[#c74444] hover:to-[#e55555]"
             }`}
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.5 }}
-            whileHover={!loading && isReadyForPayment ? { scale: 1.05 } : {}}
-            whileTap={!loading && isReadyForPayment ? { scale: 0.95 } : {}}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+            whileHover={!loading && isReadyForPayment ? { scale: 1.02 } : {}}
+            whileTap={!loading && isReadyForPayment ? { scale: 0.98 } : {}}
           >
             {loading ? (
               <>
@@ -266,13 +269,13 @@ export default function PurchaseClient(props: Props = {}) {
                   animate={{ rotate: 360 }}
                   transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                 />
-                Processing...
+                <span>Processing...</span>
               </>
             ) : isReadyForPayment ? (
               <>
-                <CreditCard size={24} />
-                Pay ₹{displayAmount}
-                <ArrowRight size={24} />
+                <CreditCard className="w-6 h-6" />
+                <span>Pay Now</span>
+                <ArrowRight className="w-6 h-6" />
               </>
             ) : (
               "Preparing payment..."
@@ -282,23 +285,32 @@ export default function PurchaseClient(props: Props = {}) {
           {/* Error Message */}
           {error && (
             <motion.div
-              className="bg-red-50 border-2 border-red-200 rounded-xl p-4 text-red-600 text-center"
+              className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-center"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <p className="font-semibold">{error}</p>
+              <p className="font-semibold text-sm">{error}</p>
             </motion.div>
           )}
 
-          {/* Security Badge */}
+          {/* Trust Badges */}
           <motion.div
-            className="flex items-center justify-center gap-2 text-gray-500 text-sm"
+            className="space-y-3"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.5 }}
+            transition={{ delay: 0.6, duration: 0.5 }}
           >
-            <Shield size={18} className="text-green-600" />
-            <span>Secure payment • Lifetime access • Money-back guarantee</span>
+            <div className="flex items-center justify-center gap-2 text-gray-500 text-xs sm:text-sm">
+              <Shield className="w-4 h-4 text-green-600" />
+              <span>100% Secure Payment</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-gray-400">
+              <span>✓ Money-back guarantee</span>
+              <span className="hidden sm:inline">•</span>
+              <span>✓ Instant access</span>
+              <span className="hidden sm:inline">•</span>
+              <span>✓ 24/7 support</span>
+            </div>
           </motion.div>
         </div>
       </motion.div>
