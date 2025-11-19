@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { supabase } from "../../components/lib/supabaseClient";
-import ThinkingRobotLoader from "../../components/RobotThinkingLoader";
+import { ScatterBoxLoaderComponent } from "../../components/ScatterBoxLoaderComponent";
 
 type Lesson = {
   id: string;
@@ -33,6 +33,7 @@ export default function CourseDetailsPage() {
   const [user, setUser] = useState<any>(null);
   const [hasPurchased, setHasPurchased] = useState(false);
   const [checkingPurchase, setCheckingPurchase] = useState(true);
+  const [navigating, setNavigating] = useState(false);
 
   // Fetch course data
   useEffect(() => {
@@ -116,8 +117,8 @@ export default function CourseDetailsPage() {
   }, [user, course, router]);
 
   // Show loader while any data is loading
-  if (courseLoading || userLoading || checkingPurchase) {
-    return <ThinkingRobotLoader />;
+  if (courseLoading || userLoading || checkingPurchase || navigating) {
+    return <ScatterBoxLoaderComponent />;
   }
 
   if (!course) {
@@ -198,7 +199,10 @@ export default function CourseDetailsPage() {
       {user ? (
         hasPurchased ? (
           <motion.button
-            onClick={() => router.push(`/courses/${course.id}/lessons`)}
+            onClick={() => {
+              setNavigating(true);
+              router.push(`/courses/${course.id}/lessons`);
+            }}
             className="w-full py-5 rounded-3xl text-white font-bold bg-green-600 hover:bg-green-700 shadow-xl text-2xl"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -207,11 +211,12 @@ export default function CourseDetailsPage() {
           </motion.button>
         ) : (
           <motion.button
-            onClick={() =>
+            onClick={() => {
+              setNavigating(true);
               router.push(
                 `/purchase?course_id=${course.id}&amount=${course.price}`
-              )
-            }
+              );
+            }}
             className="w-full py-5 rounded-3xl text-white font-bold bg-[#de5252] hover:bg-[#f66] shadow-xl text-2xl"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -221,7 +226,10 @@ export default function CourseDetailsPage() {
         )
       ) : (
         <motion.button
-          onClick={() => router.push(`/login?redirect=/courses/${course.id}`)}
+          onClick={() => {
+            setNavigating(true);
+            router.push(`/login?redirect=/courses/${course.id}`);
+          }}
           className="w-full py-5 rounded-3xl text-white font-bold bg-indigo-500 hover:bg-indigo-600 shadow-xl text-2xl"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../components/lib/supabaseClient";
-import ThinkingRobotLoader from "../../../components/RobotThinkingLoader";
+import { ScatterBoxLoaderComponent } from "../../../components/ScatterBoxLoaderComponent";
 
 // Dynamic import for React wrapper
 const MuxPlayer = dynamic(() => import("@mux/mux-player-react"), { ssr: false });
@@ -131,7 +131,7 @@ export default function CourseLessonsPage() {
   };
 
   // Show loader while checking access or loading course
-  if (checkingAccess || loading) return <ThinkingRobotLoader />;
+  if (checkingAccess || loading) return <ScatterBoxLoaderComponent />;
 
   // If no access after check, show unauthorized message (shouldn't reach here due to redirects)
   if (!hasAccess) {

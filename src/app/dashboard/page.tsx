@@ -5,11 +5,13 @@ import { supabase } from "../components/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Pencil, LogOut, Save, X } from "lucide-react";
+import { ScatterBoxLoaderComponent } from "../components/ScatterBoxLoaderComponent";
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const [form, setForm] = useState({username: "", phone: "", grade: "", school_or_job: "" });
 
   const router = useRouter();
@@ -57,6 +59,7 @@ export default function Dashboard() {
   }, [router]);
 
   const handleLogout = async () => {
+    setNavigating(true);
     await supabase.auth.signOut();
     router.push("/login");
   };
@@ -83,18 +86,9 @@ export default function Dashboard() {
     }
   };
 
-  if (loading)
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <motion.div
-          className="text-2xl font-semibold text-gray-600"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          Loading Dashboard...
-        </motion.div>
-      </div>
-    );
+  if (loading || navigating) {
+    return <ScatterBoxLoaderComponent />;
+  }
 
   return (
     <div className="flex h-screen items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-100 p-4">
@@ -142,13 +136,19 @@ export default function Dashboard() {
 
               <div className="flex flex-col gap-3 mt-6">
                 <button
-                  onClick={() => router.push("/courses")}
+                  onClick={() => {
+                    setNavigating(true);
+                    router.push("/courses");
+                  }}
                   className="w-full bg-[#de5252] text-white px-5 py-3 rounded-lg shadow-lg hover:bg-[#f66] transition font-semibold"
                 >
                   View All Courses
                 </button>
                 <button
-                  onClick={() => router.push("/my-courses")}
+                  onClick={() => {
+                    setNavigating(true);
+                    router.push("/my-courses");
+                  }}
                   className="w-full bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg hover:bg-green-700 transition font-semibold"
                 >
                   My Courses

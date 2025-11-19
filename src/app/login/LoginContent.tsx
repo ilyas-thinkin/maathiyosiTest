@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../components/lib/supabaseClient";
 import { motion } from "framer-motion";
 import { LogIn } from "lucide-react";
-import ThinkingRobotLoader from "../components/RobotThinkingLoader";
+import { ScatterBoxLoaderComponent } from "../components/ScatterBoxLoaderComponent";
 
 export default function LoginContent() {
   const [loading, setLoading] = useState(false);
@@ -96,7 +96,7 @@ export default function LoginContent() {
 
         {/* Checking Session */}
         {checkingUser ? (
-          <ThinkingRobotLoader />
+          <ScatterBoxLoaderComponent />
         ) : (
           <motion.button
             onClick={handleLogin}

@@ -11,48 +11,95 @@ type Testimonial = {
   image: string;
 };
 
-const testimonials: Testimonial[] = [
+// First row testimonials
+const testimonialsRow1: Testimonial[] = [
   {
-    name: "Sarah Thompson",
-    role: "Project Manager",
+    name: "Arun Kumar",
+    role: "Class 11 Student",
     feedback:
-      "This AI product has transformed the way I manage my daily tasks. It’s intuitive, fast, and incredibly accurate!",
-    image: "https://randomuser.me/api/portraits/women/44.jpg",
-  },
-  {
-    name: "Michael Chen",
-    role: "Software Developer",
-    feedback:
-      "I was skeptical at first, but this AI tool saved me hours of work. The automation features are a game-changer.",
+      "Maathiyosi has completely changed how I learn physics. The video explanations are so clear, and I can learn at my own pace!",
     image: "https://randomuser.me/api/portraits/men/32.jpg",
   },
   {
-    name: "Emily Rodriguez",
-    role: "Data Analyst",
+    name: "Priya Sharma",
+    role: "Class 12 Student",
     feedback:
-      "The AI’s ability to analyze data and provide insights is unmatched. It’s like having a personal assistant 24/7.",
-    image: "https://randomuser.me/api/portraits/women/68.jpg",
+      "The best decision I made for my board exam preparation. The structured courses and practice problems helped me score 95%!",
+    image: "https://randomuser.me/api/portraits/women/44.jpg",
   },
   {
-    name: "David Patel",
-    role: "IT Consultant",
+    name: "Karthik Reddy",
+    role: "Engineering Student",
     feedback:
-      "I’ve never seen an AI product this user-friendly. It integrated seamlessly into my workflow from day one.",
+      "As an engineering student, Maathiyosi's advanced math courses have been invaluable. The concepts are explained brilliantly!",
     image: "https://randomuser.me/api/portraits/men/76.jpg",
   },
   {
-    name: "Olivia Harper",
-    role: "Marketing Specialist",
+    name: "Divya Nair",
+    role: "Class 10 Student",
     feedback:
-      "This AI has boosted my productivity tenfold. The predictive features are spot-on and so helpful.",
-    image: "https://randomuser.me/api/portraits/women/12.jpg",
+      "I was struggling with algebra, but Maathiyosi made it so easy to understand. Now it's my favorite subject!",
+    image: "https://randomuser.me/api/portraits/women/68.jpg",
   },
   {
-    name: "James Carter",
-    role: "Operations Manager",
+    name: "Rahul Mehta",
+    role: "NEET Aspirant",
     feedback:
-      "The customer support paired with the AI product is phenomenal. It delivers results every single time.",
+      "The biology and chemistry courses are exceptional. The detailed explanations helped me crack NEET with a great score!",
+    image: "https://randomuser.me/api/portraits/men/45.jpg",
+  },
+  {
+    name: "Sneha Iyer",
+    role: "Class 9 Student",
+    feedback:
+      "Learning has never been this fun! The interactive lessons and quizzes keep me engaged and help me remember better.",
+    image: "https://randomuser.me/api/portraits/women/12.jpg",
+  },
+];
+
+// Second row testimonials
+const testimonialsRow2: Testimonial[] = [
+  {
+    name: "Vijay Krishnan",
+    role: "JEE Aspirant",
+    feedback:
+      "Maathiyosi's JEE preparation courses are top-notch. The problem-solving techniques and shortcuts are game-changers!",
     image: "https://randomuser.me/api/portraits/men/90.jpg",
+  },
+  {
+    name: "Ananya Das",
+    role: "Class 12 Student",
+    feedback:
+      "The chemistry courses here are amazing! Complex reactions are broken down so well that I actually enjoy studying now.",
+    image: "https://randomuser.me/api/portraits/women/25.jpg",
+  },
+  {
+    name: "Rohan Singh",
+    role: "Class 11 Student",
+    feedback:
+      "Best online learning platform I've used. The teachers are excellent, and the study materials are comprehensive.",
+    image: "https://randomuser.me/api/portraits/men/54.jpg",
+  },
+  {
+    name: "Meera Patel",
+    role: "Class 10 Student",
+    feedback:
+      "My grades improved significantly after joining Maathiyosi. The practice tests really helped me prepare for exams!",
+    image: "https://randomuser.me/api/portraits/women/33.jpg",
+  },
+  {
+    name: "Arjun Desai",
+    role: "Engineering Student",
+    feedback:
+      "The advanced calculus and linear algebra courses are perfectly designed for college-level learning. Highly recommend!",
+    image: "https://randomuser.me/api/portraits/men/67.jpg",
+  },
+  {
+    name: "Lakshmi Menon",
+    role: "Class 12 Student",
+    feedback:
+      "Thanks to Maathiyosi, I'm confident about my board exams. The revision modules and mock tests are extremely helpful!",
+    image: "https://randomuser.me/api/portraits/women/51.jpg",
   },
 ];
 
@@ -184,13 +231,13 @@ export default function TestimonialsSlider() {
     <section className="bg-white py-12 overflow-hidden space-y-6">
 
         <h2 className="text-[#de5252] text-4xl font-bold text-center mb-10">
-  Testimonials
+  Student Testimonials
 </h2>
 
 
 
       <Row
-        items={testimonials}
+        items={testimonialsRow1}
         direction="left"
         duration={40} // slower
         paused={pausedTop}
@@ -199,7 +246,7 @@ export default function TestimonialsSlider() {
         setHoveredIndex={setHoveredTop}
       />
       <Row
-        items={testimonials}
+        items={testimonialsRow2}
         direction="right"
         duration={45} // slower
         paused={pausedBottom}

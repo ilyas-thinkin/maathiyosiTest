@@ -52,14 +52,13 @@ export default function UploadCourseForm() {
       let completedSteps = 0;
 
       // ✅ Upload thumbnail if provided
+      let thumbPath = null;
       if (form.thumbnail) {
         setCurrentStep('Uploading thumbnail...');
-        await uploadThumbnail(form.thumbnail);
+        thumbPath = await uploadThumbnail(form.thumbnail);
         completedSteps++;
         setUploadProgress((completedSteps / totalSteps) * 100);
       }
-
-      const thumbPath = form.thumbnail ? await uploadThumbnail(form.thumbnail) : null;
 
       // ✅ Insert course WITH PRICE
       setCurrentStep('Creating course...');

@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { supabase } from "../components/lib/supabaseClient";
-import ThinkingRobotLoader from "../components/RobotThinkingLoader";
+import { ScatterBoxLoaderComponent } from "../components/ScatterBoxLoaderComponent";
 
 function PaymentSuccessContent() {
   const router = useRouter();
@@ -12,6 +12,7 @@ function PaymentSuccessContent() {
   const transactionId = searchParams.get("transaction_id");
 
   const [loading, setLoading] = useState(true);
+  const [navigating, setNavigating] = useState(false);
   const [purchase, setPurchase] = useState<any>(null);
   const [course, setCourse] = useState<any>(null);
 
@@ -56,7 +57,7 @@ function PaymentSuccessContent() {
     fetchDetails();
   }, [transactionId]);
 
-  if (loading) return <ThinkingRobotLoader />;
+  if (loading || navigating) return <ScatterBoxLoaderComponent />;
 
   return (
     <motion.div
@@ -133,7 +134,10 @@ function PaymentSuccessContent() {
 
         <div className="space-y-4">
           <motion.button
-            onClick={() => router.push(`/courses/${purchase?.course_id}/lessons`)}
+            onClick={() => {
+              setNavigating(true);
+              router.push(`/courses/${purchase?.course_id}/lessons`);
+            }}
             className="w-full py-4 bg-[#de5252] text-white font-bold text-xl rounded-3xl shadow-lg hover:bg-[#f66]"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -142,7 +146,10 @@ function PaymentSuccessContent() {
           </motion.button>
 
           <button
-            onClick={() => router.push("/courses")}
+            onClick={() => {
+              setNavigating(true);
+              router.push("/courses");
+            }}
             className="w-full py-3 text-gray-600 hover:text-gray-800 font-semibold"
           >
             Browse More Courses
@@ -155,7 +162,7 @@ function PaymentSuccessContent() {
 
 export default function PaymentSuccessPage() {
   return (
-    <Suspense fallback={<ThinkingRobotLoader />}>
+    <Suspense fallback={<ScatterBoxLoaderComponent />}>
       <PaymentSuccessContent />
     </Suspense>
   );
