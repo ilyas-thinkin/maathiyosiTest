@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { Menu, X, LogOut, BookOpen, Settings, LayoutDashboard } from 'lucide-react';
@@ -87,13 +88,15 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-pink-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">M</span>
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent">
-              Maathiyosi.io
-            </span>
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/images/Maathiyosi_Logo_Rect.png"
+              alt="Maathiyosi"
+              width={180}
+              height={48}
+              className="h-10 w-auto"
+              priority
+            />
           </Link>
 
           {/* Desktop Menu */}

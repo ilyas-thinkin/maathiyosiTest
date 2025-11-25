@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Plus, X, GripVertical, FileVideo, FileText, Image as ImageIcon } from "lucide-react";
+import { Plus, X, GripVertical, FileVideo, FileText, Image as ImageIcon, CheckCircle, Loader2 } from "lucide-react";
+
+type UploadProgress = {
+  stage: string;
+  currentItem: number;
+  totalItems: number;
+  currentItemName: string;
+  percentage: number;
+};
 
 export default function CourseUploader() {
   const [courseTitle, setCourseTitle] = useState("");
@@ -18,6 +26,7 @@ export default function CourseUploader() {
   >([]);
 
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
   /** Add new lesson */
   const addLesson = () => {
@@ -67,23 +76,50 @@ export default function CourseUploader() {
     return data.url;
   };
 
-  /** Upload video to Mux */
-  const uploadLessonVideo = async (file: File) => {
+  /** Upload video to Mux with progress tracking */
+  const uploadLessonVideo = async (file: File, onProgress?: (status: string) => void) => {
     console.log("Uploading video for lesson:", file.name);
+    onProgress?.("Getting upload URL...");
 
     const res = await fetch("/api/mux/create-upload", { method: "POST" });
     const { uploadUrl, uploadId } = await res.json();
 
     if (!uploadUrl) throw new Error("Failed to get Mux upload URL");
 
-    await fetch(uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": file.type },
-      body: file,
+    onProgress?.("Uploading video to Mux...");
+
+    // Use XMLHttpRequest for upload progress
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl, true);
+      xhr.setRequestHeader("Content-Type", file.type);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          onProgress?.(`Uploading: ${percent}%`);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Upload failed"));
+      xhr.send(file);
     });
 
+    onProgress?.("Processing video...");
+
     let playbackUrl = "";
-    while (!playbackUrl) {
+    let attempts = 0;
+    const maxAttempts = 60; // 3 minutes max
+
+    while (!playbackUrl && attempts < maxAttempts) {
       const assetRes = await fetch("/api/mux/get-asset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -95,7 +131,13 @@ export default function CourseUploader() {
         playbackUrl = assetData.playbackUrl;
         break;
       }
+      attempts++;
+      onProgress?.(`Processing video... (${attempts}/${maxAttempts})`);
       await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+
+    if (!playbackUrl) {
+      throw new Error("Video processing timed out after 3 minutes");
     }
 
     console.log("Mux video playback URL:", playbackUrl);
@@ -131,13 +173,34 @@ export default function CourseUploader() {
   }
 
   setUploading(true);
+  setUploadProgress(null);
+
+  // Count total upload steps
+  const totalSteps = 1 + // thumbnail
+    lessons.filter(l => l.videoFile).length + // videos
+    lessons.filter(l => l.docFile).length + // documents
+    1; // save course
+
+  let completedSteps = 0;
+
+  const updateProgress = (stage: string, itemName: string) => {
+    setUploadProgress({
+      stage,
+      currentItem: completedSteps + 1,
+      totalItems: totalSteps,
+      currentItemName: itemName,
+      percentage: Math.round((completedSteps / totalSteps) * 100)
+    });
+  };
 
   try {
     // 1️⃣ Upload course thumbnail
+    updateProgress("Uploading thumbnail", thumbnail?.name || "No thumbnail");
     let finalThumbnailUrl = "";
     if (thumbnail) {
       finalThumbnailUrl = await uploadThumbnail();
     }
+    completedSteps++;
 
     // 2️⃣ Upload lessons (video + document) and preserve order
     const lessonsData = [];
@@ -145,14 +208,25 @@ export default function CourseUploader() {
       const lesson = lessons[i];
 
       // Upload video if selected
-      const playbackUrl = lesson.videoFile
-        ? await uploadLessonVideo(lesson.videoFile)
-        : "";
+      let playbackUrl = "";
+      if (lesson.videoFile) {
+        updateProgress("Uploading video", `Lesson ${i + 1}: ${lesson.title || lesson.videoFile.name}`);
+        playbackUrl = await uploadLessonVideo(lesson.videoFile, (status) => {
+          setUploadProgress(prev => prev ? {
+            ...prev,
+            currentItemName: `Lesson ${i + 1}: ${status}`
+          } : null);
+        });
+        completedSteps++;
+      }
 
       // Upload document if selected
-      const documentUrl = lesson.docFile
-        ? await uploadLessonDocument(lesson.docFile, lesson.title)
-        : "";
+      let documentUrl = "";
+      if (lesson.docFile) {
+        updateProgress("Uploading document", `Lesson ${i + 1}: ${lesson.docFile.name}`);
+        documentUrl = await uploadLessonDocument(lesson.docFile, lesson.title);
+        completedSteps++;
+      }
 
       lessonsData.push({
         title: lesson.title,
@@ -176,22 +250,33 @@ export default function CourseUploader() {
     console.log("Uploading course payload:", payload);
 
     // Send to save-course API
-const res = await fetch("/api/save-course", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    title: courseTitle,
-    description: courseDesc,
-    category,
-    price,
-    thumbnail_url: finalThumbnailUrl,
-    lessons: lessonsData,
-  }),
-});
+    updateProgress("Saving course", "Finalizing...");
+    const res = await fetch("/api/save-course", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: courseTitle,
+        description: courseDesc,
+        category,
+        price,
+        thumbnail_url: finalThumbnailUrl,
+        lessons: lessonsData,
+      }),
+    });
+    completedSteps++;
+
     if (!res.ok) {
       const errorData = await res.json();
       throw new Error(errorData.error || "Failed to save course");
     }
+
+    setUploadProgress({
+      stage: "Complete",
+      currentItem: totalSteps,
+      totalItems: totalSteps,
+      currentItemName: "Course uploaded successfully!",
+      percentage: 100
+    });
 
     alert("Course uploaded successfully!");
     // Optional: Reset form or redirect
@@ -202,6 +287,7 @@ const res = await fetch("/api/save-course", {
     setThumbnail(null);
     setThumbnailUrl("");
     setLessons([]);
+    setUploadProgress(null);
   } catch (err: any) {
     console.error("Course upload failed:", err);
     alert(`Upload failed: ${err.message}`);
@@ -366,12 +452,51 @@ const res = await fetch("/api/save-course", {
         </button>
       </div>
 
+      {/* Upload Progress */}
+      {uploading && uploadProgress && (
+        <div className="mt-6 bg-white rounded-lg p-6 shadow-md border border-blue-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700">
+              {uploadProgress.stage}
+            </span>
+            <span className="text-sm text-gray-500">
+              Step {uploadProgress.currentItem} of {uploadProgress.totalItems}
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-3 mb-3 overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${uploadProgress.percentage}%` }}
+            />
+          </div>
+
+          {/* Current Item */}
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            {uploadProgress.stage === "Complete" ? (
+              <CheckCircle className="w-4 h-4 text-green-500" />
+            ) : (
+              <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+            )}
+            <span className="truncate">{uploadProgress.currentItemName}</span>
+          </div>
+
+          {/* Percentage */}
+          <div className="text-right mt-2">
+            <span className="text-lg font-bold text-blue-600">
+              {uploadProgress.percentage}%
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Submit */}
       <button
         onClick={handleSubmit}
         disabled={uploading}
         className={`mt-6 w-full py-3 rounded-lg text-white font-semibold ${
-          uploading ? "bg-gray-400" : "bg-blue-700 hover:bg-blue-800"
+          uploading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-700 hover:bg-blue-800"
         }`}
       >
         {uploading ? "Uploading..." : "Save Course"}

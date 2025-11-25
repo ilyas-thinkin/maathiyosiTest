@@ -4,9 +4,17 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import dynamic from "next/dynamic";
-import { Plus, X, GripVertical, FileVideo, FileText, Image as ImageIcon } from "lucide-react";
+import { Plus, X, GripVertical, FileVideo, FileText, Image as ImageIcon, CheckCircle, Loader2 } from "lucide-react";
 
 const MuxPlayer = dynamic(() => import("@mux/mux-player-react"), { ssr: false });
+
+type UploadProgress = {
+  stage: string;
+  currentItem: number;
+  totalItems: number;
+  currentItemName: string;
+  percentage: number;
+};
 
 type Lesson = {
   id?: string;
@@ -40,6 +48,7 @@ export default function EditCoursePage() {
   const [thumbnailUrl, setThumbnailUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
   /** Fetch course data */
   useEffect(() => {
@@ -169,28 +178,53 @@ export default function EditCoursePage() {
     return data.url;
   };
 
-  const uploadLessonVideo = async (file: File, oldVideoUrl?: string) => {
+  const uploadLessonVideo = async (file: File, oldVideoUrl?: string, onProgress?: (status: string) => void) => {
     if (!file) return "";
-    
+
     // Delete old video if it exists
     if (oldVideoUrl) {
+      onProgress?.("Deleting old video...");
       await deleteMuxVideo(oldVideoUrl);
     }
-    
+
+    onProgress?.("Getting upload URL...");
     const res = await fetch("/api/mux/create-upload", { method: "POST" });
     const { uploadUrl, uploadId } = await res.json();
     if (!uploadUrl) throw new Error("Failed to get Mux upload URL");
 
-    await fetch(uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": file.type },
-      body: file,
+    onProgress?.("Uploading video to Mux...");
+
+    // Use XMLHttpRequest for upload progress
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl, true);
+      xhr.setRequestHeader("Content-Type", file.type);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          onProgress?.(`Uploading: ${percent}%`);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Upload failed"));
+      xhr.send(file);
     });
+
+    onProgress?.("Processing video...");
 
     let playbackUrl = "";
     let attempts = 0;
-    const maxAttempts = 40; // 2 minutes max
-    
+    const maxAttempts = 60; // 3 minutes max
+
     while (!playbackUrl && attempts < maxAttempts) {
       const assetRes = await fetch("/api/mux/get-asset", {
         method: "POST",
@@ -203,13 +237,14 @@ export default function EditCoursePage() {
         break;
       }
       attempts++;
+      onProgress?.(`Processing video... (${attempts}/${maxAttempts})`);
       await new Promise((resolve) => setTimeout(resolve, 3000));
     }
-    
+
     if (!playbackUrl) {
-      throw new Error("Video processing timed out");
+      throw new Error("Video processing timed out after 3 minutes");
     }
-    
+
     return playbackUrl;
   };
 
@@ -226,10 +261,32 @@ export default function EditCoursePage() {
   const handleSubmit = async () => {
     if (!course) return;
     setUploading(true);
+    setUploadProgress(null);
+
+    // Count total upload steps
+    const existingVideos = lessons.filter(l => l.newVideoFile).length;
+    const existingDocs = lessons.filter(l => l.newDocumentFile).length;
+    const newVideos = newLessons.filter(l => l.newVideoFile).length;
+    const newDocs = newLessons.filter(l => l.newDocumentFile).length;
+    const totalSteps = 1 + existingVideos + existingDocs + newVideos + newDocs + 1; // thumbnail + files + save
+
+    let completedSteps = 0;
+
+    const updateProgress = (stage: string, itemName: string) => {
+      setUploadProgress({
+        stage,
+        currentItem: completedSteps + 1,
+        totalItems: totalSteps,
+        currentItemName: itemName,
+        percentage: Math.round((completedSteps / totalSteps) * 100)
+      });
+    };
 
     try {
       // 1️⃣ Upload thumbnail if changed
+      updateProgress("Uploading thumbnail", thumbnail?.name || "Using existing thumbnail");
       const finalThumbnailUrl = await uploadThumbnail();
+      completedSteps++;
 
       // 2️⃣ Prepare all lessons with video/document uploads and order
       const updatedLessons: any[] = [];
@@ -238,12 +295,25 @@ export default function EditCoursePage() {
       for (let i = 0; i < lessons.length; i++) {
         const lesson = lessons[i];
         const oldVideoUrl = lesson.video_url || lesson.mux_video_id || "";
-        const videoUrl = lesson.newVideoFile
-          ? await uploadLessonVideo(lesson.newVideoFile, oldVideoUrl)
-          : oldVideoUrl;
-        const docUrl = lesson.newDocumentFile
-          ? await uploadLessonDocument(lesson.newDocumentFile)
-          : lesson.document_url || "";
+
+        let videoUrl = oldVideoUrl;
+        if (lesson.newVideoFile) {
+          updateProgress("Uploading video", `Lesson ${i + 1}: ${lesson.title}`);
+          videoUrl = await uploadLessonVideo(lesson.newVideoFile, oldVideoUrl, (status) => {
+            setUploadProgress(prev => prev ? {
+              ...prev,
+              currentItemName: `Lesson ${i + 1}: ${status}`
+            } : null);
+          });
+          completedSteps++;
+        }
+
+        let docUrl = lesson.document_url || "";
+        if (lesson.newDocumentFile) {
+          updateProgress("Uploading document", `Lesson ${i + 1}: ${lesson.newDocumentFile.name}`);
+          docUrl = await uploadLessonDocument(lesson.newDocumentFile);
+          completedSteps++;
+        }
 
         updatedLessons.push({
           id: lesson.id,
@@ -258,8 +328,25 @@ export default function EditCoursePage() {
       // New lessons
       for (let i = 0; i < newLessons.length; i++) {
         const lesson = newLessons[i];
-        const videoUrl = lesson.newVideoFile ? await uploadLessonVideo(lesson.newVideoFile) : "";
-        const docUrl = lesson.newDocumentFile ? await uploadLessonDocument(lesson.newDocumentFile) : "";
+
+        let videoUrl = "";
+        if (lesson.newVideoFile) {
+          updateProgress("Uploading video", `New Lesson ${i + 1}: ${lesson.title}`);
+          videoUrl = await uploadLessonVideo(lesson.newVideoFile, undefined, (status) => {
+            setUploadProgress(prev => prev ? {
+              ...prev,
+              currentItemName: `New Lesson ${i + 1}: ${status}`
+            } : null);
+          });
+          completedSteps++;
+        }
+
+        let docUrl = "";
+        if (lesson.newDocumentFile) {
+          updateProgress("Uploading document", `New Lesson ${i + 1}: ${lesson.newDocumentFile.name}`);
+          docUrl = await uploadLessonDocument(lesson.newDocumentFile);
+          completedSteps++;
+        }
 
         updatedLessons.push({
           title: lesson.title,
@@ -284,14 +371,24 @@ export default function EditCoursePage() {
       console.log("Submitting course update with lessons:", updatedLessons);
 
       // 4️⃣ Send to update course API
+      updateProgress("Saving course", "Finalizing...");
       const res = await fetch("/api/admin/update-mux-course", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      completedSteps++;
 
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || "Failed to update course");
+
+      setUploadProgress({
+        stage: "Complete",
+        currentItem: totalSteps,
+        totalItems: totalSteps,
+        currentItemName: "Course updated successfully!",
+        percentage: 100
+      });
 
       alert("Course updated successfully!");
       router.push("/admin-page");
@@ -530,6 +627,45 @@ export default function EditCoursePage() {
           <Plus /> Add New Lesson
         </button>
       </div>
+
+      {/* Upload Progress */}
+      {uploading && uploadProgress && (
+        <div className="mb-6 bg-white rounded-lg p-6 shadow-md border border-blue-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700">
+              {uploadProgress.stage}
+            </span>
+            <span className="text-sm text-gray-500">
+              Step {uploadProgress.currentItem} of {uploadProgress.totalItems}
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-3 mb-3 overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${uploadProgress.percentage}%` }}
+            />
+          </div>
+
+          {/* Current Item */}
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            {uploadProgress.stage === "Complete" ? (
+              <CheckCircle className="w-4 h-4 text-green-500" />
+            ) : (
+              <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+            )}
+            <span className="truncate">{uploadProgress.currentItemName}</span>
+          </div>
+
+          {/* Percentage */}
+          <div className="text-right mt-2">
+            <span className="text-lg font-bold text-blue-600">
+              {uploadProgress.percentage}%
+            </span>
+          </div>
+        </div>
+      )}
 
       <button
         onClick={handleSubmit}

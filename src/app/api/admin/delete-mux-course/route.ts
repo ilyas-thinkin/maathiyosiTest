@@ -15,15 +15,18 @@ const mux = new Mux({
 });
 
 export async function DELETE(req: Request) {
+  const startTime = Date.now();
+
   try {
     const { searchParams } = new URL(req.url);
     const courseId = searchParams.get("id");
 
     if (!courseId) {
+      console.error("[DELETE COURSE] Missing course ID in request");
       return NextResponse.json({ error: "Missing course ID" }, { status: 400 });
     }
 
-    console.log("🧹 Deleting course:", courseId);
+    console.log(`[DELETE COURSE] Starting deletion for course: ${courseId}`);
 
     // 🔹 1️⃣ Fetch the course thumbnail
     const { data: course, error: courseError } = await supabaseServer
@@ -81,14 +84,20 @@ export async function DELETE(req: Request) {
       .eq("id", courseId);
     if (deleteError) throw deleteError;
 
-    console.log(`✅ Course deleted successfully: ${courseId}`);
+    const duration = Date.now() - startTime;
+    console.log(`[DELETE COURSE] Course deleted successfully: ${courseId} (${duration}ms)`);
 
     return NextResponse.json({
       success: true,
       message: "Course, lessons, and all assets deleted successfully",
+      durationMs: duration
     });
   } catch (err: any) {
-    console.error("❌ Delete Mux course error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("[DELETE COURSE] Critical error:", err.message);
+    console.error("[DELETE COURSE] Stack trace:", err.stack);
+    return NextResponse.json({
+      error: err.message,
+      details: process.env.NODE_ENV === "development" ? err.stack : undefined
+    }, { status: 500 });
   }
 }
