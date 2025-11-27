@@ -24,7 +24,18 @@ function PaymentSuccessContent() {
       }
 
       try {
-        // Fetch purchase details
+        // First, verify the payment status with PhonePe
+        console.log("Verifying payment status for:", transactionId);
+        try {
+          const verifyResponse = await fetch(`/api/phonepe/verify-pending?transactionId=${transactionId}`);
+          const verifyData = await verifyResponse.json();
+          console.log("Payment verification result:", verifyData);
+        } catch (verifyError) {
+          console.error("Payment verification error (non-critical):", verifyError);
+          // Continue even if verification fails
+        }
+
+        // Fetch purchase details (after verification attempt)
         const { data: purchaseData, error: purchaseError } = await supabase
           .from("purchase")
           .select("*")
