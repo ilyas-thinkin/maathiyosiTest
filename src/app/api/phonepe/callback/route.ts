@@ -59,22 +59,39 @@ export async function POST(req: NextRequest) {
 
     // Determine payment status based on event and payload.state
     let updateStatus = "failed";
-    const payloadState = payload.state;
+    const payloadState = payload.state || payload.status;
+    const payloadCode = payload.code;
 
     // V2 events: checkout.order.completed, checkout.order.failed
-    if (event === "checkout.order.completed" || payloadState === "COMPLETED") {
+    // Also check for various status/code combinations
+    if (
+      event === "checkout.order.completed" ||
+      payloadState === "COMPLETED" ||
+      payloadState === "SUCCESS" ||
+      payloadCode === "PAYMENT_SUCCESS" ||
+      payloadCode === "SUCCESS"
+    ) {
       updateStatus = "success";
-    } else if (event === "checkout.order.failed" || payloadState === "FAILED") {
+    } else if (
+      event === "checkout.order.failed" ||
+      payloadState === "FAILED" ||
+      payloadCode === "PAYMENT_FAILED" ||
+      payloadCode === "FAILED"
+    ) {
       updateStatus = "failed";
-    } else if (payloadState === "PENDING") {
+    } else if (
+      payloadState === "PENDING" ||
+      payloadCode === "PAYMENT_PENDING"
+    ) {
       updateStatus = "pending";
     }
 
-    console.log("Updating purchase status:", {
+    console.log("POST Webhook - Updating purchase status:", {
       purchaseId: purchase.id,
       status: updateStatus,
       event: event,
-      payloadState: payloadState
+      payloadState: payloadState,
+      payloadCode: payloadCode
     });
 
     // Update purchase status
@@ -137,18 +154,39 @@ export async function GET(req: NextRequest) {
 
   // Verify payment status by calling PhonePe V2 status API
   try {
+    console.log("Checking payment status for order:", merchantOrderId);
     const statusResponse = await checkPaymentStatusV2(merchantOrderId);
+    console.log("PhonePe status response:", JSON.stringify(statusResponse, null, 2));
 
     let updateStatus = "failed";
-    const state = statusResponse.state || statusResponse.payload?.state;
 
-    if (state === "COMPLETED") {
+    // PhonePe V2 uses different response structures, check all possible fields
+    const state = statusResponse.state ||
+                  statusResponse.payload?.state ||
+                  statusResponse.data?.state ||
+                  statusResponse.status;
+
+    const code = statusResponse.code ||
+                 statusResponse.payload?.code ||
+                 statusResponse.data?.code;
+
+    console.log("Extracted state:", state, "code:", code);
+
+    // Check for success status - PhonePe V2 may use different values
+    if (state === "COMPLETED" ||
+        code === "PAYMENT_SUCCESS" ||
+        code === "SUCCESS" ||
+        state === "SUCCESS") {
       updateStatus = "success";
-    } else if (state === "PENDING") {
+    } else if (state === "PENDING" || code === "PAYMENT_PENDING") {
       updateStatus = "pending";
+    } else if (state === "FAILED" || code === "PAYMENT_FAILED" || code === "FAILED") {
+      updateStatus = "failed";
     }
 
-    await supabase
+    console.log("Updating purchase status to:", updateStatus);
+
+    const { error: updateError } = await supabase
       .from("purchase")
       .update({
         status: updateStatus,
@@ -157,19 +195,31 @@ export async function GET(req: NextRequest) {
       })
       .eq("transaction_id", merchantOrderId);
 
+    if (updateError) {
+      console.error("Failed to update purchase status:", updateError);
+    } else {
+      console.log("Successfully updated purchase status to:", updateStatus);
+    }
+
     if (updateStatus === "success") {
       return NextResponse.redirect(
         `${process.env.NEXT_PUBLIC_BASE_URL}/payment-success?transaction_id=${merchantOrderId}`
+      );
+    } else if (updateStatus === "pending") {
+      // For pending status, also redirect to a waiting page or success page
+      return NextResponse.redirect(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/payment-success?transaction_id=${merchantOrderId}&status=pending`
       );
     } else {
       return NextResponse.redirect(
         `${process.env.NEXT_PUBLIC_BASE_URL}/payment-failure?transaction_id=${merchantOrderId}`
       );
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error checking V2 payment status:", error);
+    console.error("Error details:", error.message, error.stack);
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/payment-failure?transaction_id=${merchantOrderId}`
+      `${process.env.NEXT_PUBLIC_BASE_URL}/payment-failure?transaction_id=${merchantOrderId}&error=${encodeURIComponent(error.message)}`
     );
   }
 }
