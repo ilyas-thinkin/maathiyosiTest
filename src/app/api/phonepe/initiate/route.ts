@@ -28,15 +28,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fetch course details from courses_mux table to get the actual price
-    const { data: courseData, error: courseError } = await supabase
+    // Fetch course details from either courses_mux or courses_vimeo table
+    let courseData = null;
+    let courseError = null;
+
+    // Try fetching from courses_mux first
+    const { data: muxCourse, error: muxError } = await supabase
       .from("courses_mux")
       .select("id, title, price")
       .eq("id", courseId)
-      .single();
+      .maybeSingle();
 
-    if (courseError || !courseData) {
-      console.error("Course not found:", courseError);
+    if (muxCourse) {
+      courseData = muxCourse;
+    } else {
+      // If not found in Mux, try Vimeo
+      const { data: vimeoCourse, error: vimeoError } = await supabase
+        .from("courses_vimeo")
+        .select("id, title, price")
+        .eq("id", courseId)
+        .maybeSingle();
+
+      if (vimeoCourse) {
+        courseData = vimeoCourse;
+      } else {
+        courseError = vimeoError || muxError;
+      }
+    }
+
+    if (!courseData) {
+      console.error("Course not found in either Mux or Vimeo tables:", courseError);
       return NextResponse.json(
         { error: "Course not found" },
         { status: 404 }
