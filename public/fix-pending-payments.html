@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Pending Payments - PhonePe</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .result-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #ccc;
+        }
+
+        .result-item.success {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .result-item.error {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .result-item.pending {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .result-item strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .result-item code {
+            background: rgba(0,0,0,0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .progress {
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .example {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .example code {
+            background: rgba(0,0,0,0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Pending Payments</h1>
+        <p class="subtitle">Verify and update payment status for pending PhonePe transactions</p>
+
+        <div class="example">
+            <strong>📋 Instructions:</strong>
+            <ol style="margin-left: 20px; margin-top: 10px;">
+                <li>Go to your Supabase dashboard</li>
+                <li>Open the <code>purchase</code> table</li>
+                <li>Filter by <code>status = 'pending'</code></li>
+                <li>Copy all transaction IDs (one per line)</li>
+                <li>Paste them below and click "Verify All Payments"</li>
+            </ol>
+        </div>
+
+        <div class="input-group">
+            <label for="transactionIds">Transaction IDs (one per line):</label>
+            <textarea
+                id="transactionIds"
+                placeholder="ORDER_0642922941_3ED7BB34&#10;ORDER_0642902327_37660F75&#10;ORDER_0642833407_723A9F8E"
+            ></textarea>
+        </div>
+
+        <button class="btn" onclick="verifyPayments()">🔍 Verify All Payments</button>
+        <button class="btn btn-secondary" onclick="clearResults()">🗑️ Clear Results</button>
+
+        <div id="progressContainer" class="progress hidden">
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill" style="width: 0%;">0%</div>
+            </div>
+            <p id="progressText" style="margin-top: 10px; color: #666; text-align: center;"></p>
+        </div>
+
+        <div id="results" class="results hidden"></div>
+    </div>
+
+    <script>
+        let processing = false;
+
+        async function verifyPayments() {
+            if (processing) {
+                alert('Already processing payments...');
+                return;
+            }
+
+            const textarea = document.getElementById('transactionIds');
+            const transactionIds = textarea.value
+                .split('\n')
+                .map(id => id.trim())
+                .filter(id => id.length > 0);
+
+            if (transactionIds.length === 0) {
+                alert('Please enter at least one transaction ID');
+                return;
+            }
+
+            processing = true;
+            const resultsDiv = document.getElementById('results');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+
+            // Show progress
+            resultsDiv.classList.remove('hidden');
+            progressContainer.classList.remove('hidden');
+            resultsDiv.innerHTML = '<p style="text-align: center; color: #666;">Processing payments...</p>';
+
+            let completed = 0;
+            const total = transactionIds.length;
+            const results = [];
+
+            for (const transactionId of transactionIds) {
+                try {
+                    progressText.textContent = `Verifying ${completed + 1} of ${total}: ${transactionId}`;
+
+                    const response = await fetch(`/api/phonepe/verify-pending?transactionId=${encodeURIComponent(transactionId)}`);
+                    const data = await response.json();
+
+                    let resultClass = 'pending';
+                    let statusEmoji = '⏳';
+
+                    if (data.success && data.currentStatus === 'success') {
+                        resultClass = 'success';
+                        statusEmoji = '✅';
+                    } else if (data.error) {
+                        resultClass = 'error';
+                        statusEmoji = '❌';
+                    }
+
+                    results.push({
+                        transactionId,
+                        class: resultClass,
+                        emoji: statusEmoji,
+                        data
+                    });
+                } catch (error) {
+                    results.push({
+                        transactionId,
+                        class: 'error',
+                        emoji: '❌',
+                        data: { error: 'Network error', message: error.message }
+                    });
+                }
+
+                completed++;
+                const percentage = Math.round((completed / total) * 100);
+                progressFill.style.width = percentage + '%';
+                progressFill.textContent = percentage + '%';
+            }
+
+            // Display results
+            resultsDiv.innerHTML = '<h3 style="margin-bottom: 15px;">Results:</h3>';
+
+            results.forEach(result => {
+                const div = document.createElement('div');
+                div.className = `result-item ${result.class}`;
+
+                let message = '';
+                if (result.data.success) {
+                    message = `
+                        <strong>${result.emoji} ${result.transactionId}</strong>
+                        <div>Previous: <code>${result.data.previousStatus}</code> → Current: <code>${result.data.currentStatus}</code></div>
+                        <div style="margin-top: 5px; font-size: 13px; color: #555;">${result.data.message || 'Updated successfully'}</div>
+                    `;
+                } else {
+                    message = `
+                        <strong>${result.emoji} ${result.transactionId}</strong>
+                        <div style="color: #721c24;">Error: ${result.data.error || 'Unknown error'}</div>
+                        ${result.data.message ? `<div style="font-size: 12px; margin-top: 5px;">${result.data.message}</div>` : ''}
+                    `;
+                }
+
+                div.innerHTML = message;
+                resultsDiv.appendChild(div);
+            });
+
+            // Summary
+            const successCount = results.filter(r => r.class === 'success').length;
+            const errorCount = results.filter(r => r.class === 'error').length;
+            const pendingCount = results.filter(r => r.class === 'pending').length;
+
+            const summary = document.createElement('div');
+            summary.style.cssText = 'margin-top: 20px; padding: 15px; background: white; border-radius: 8px; text-align: center; font-weight: 600;';
+            summary.innerHTML = `
+                <div style="font-size: 18px; margin-bottom: 10px;">Summary</div>
+                <div style="display: flex; justify-content: space-around;">
+                    <div style="color: #28a745;">✅ Success: ${successCount}</div>
+                    <div style="color: #ffc107;">⏳ Pending: ${pendingCount}</div>
+                    <div style="color: #dc3545;">❌ Errors: ${errorCount}</div>
+                </div>
+            `;
+            resultsDiv.appendChild(summary);
+
+            progressText.textContent = 'Completed!';
+            processing = false;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('progressContainer').classList.add('hidden');
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressFill').textContent = '0%';
+            document.getElementById('progressText').textContent = '';
+        }
+    </script>
+</body>
+</html>
