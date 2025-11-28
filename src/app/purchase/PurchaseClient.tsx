@@ -92,7 +92,21 @@ export default function PurchaseClient(props: Props = {}) {
       if (!courseId || (amountInRupees !== null && courseTitle)) return;
 
       try {
-        const res = await fetch(`/api/admin/fetch-mux-details-course?id=${courseId}`);
+        // First, determine which source the course belongs to
+        const sourceRes = await fetch(`/api/admin/get-course-source?id=${courseId}`);
+        const sourceData = await sourceRes.json();
+
+        if (sourceData.error || !sourceData.exists) {
+          console.error("Course not found in any source");
+          return;
+        }
+
+        // Fetch from the correct source
+        const endpoint = sourceData.source === "mux"
+          ? `/api/admin/fetch-mux-details-course?id=${courseId}`
+          : `/api/admin/fetch-vimeo-details-course?id=${courseId}`;
+
+        const res = await fetch(endpoint);
         const data = await res.json();
 
         if (!data.error) {

@@ -42,7 +42,23 @@ export default function CourseDetailsPage() {
     const fetchCourse = async () => {
       setCourseLoading(true);
       try {
-        const res = await fetch(`/api/admin/fetch-mux-details-course?id=${params.id}`);
+        // First, determine which source the course belongs to
+        const sourceRes = await fetch(`/api/admin/get-course-source?id=${params.id}`);
+        const sourceData = await sourceRes.json();
+
+        if (sourceData.error || !sourceData.exists) {
+          console.error("Course not found in any source");
+          setCourse(null);
+          setCourseLoading(false);
+          return;
+        }
+
+        // Fetch from the correct source
+        const endpoint = sourceData.source === "mux"
+          ? `/api/admin/fetch-mux-details-course?id=${params.id}`
+          : `/api/admin/fetch-vimeo-details-course?id=${params.id}`;
+
+        const res = await fetch(endpoint);
         const data = await res.json();
 
         if (data.lessons && Array.isArray(data.lessons)) {

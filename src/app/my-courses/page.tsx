@@ -80,13 +80,28 @@ export default function MyCoursesPage() {
         const courseIds = [...new Set(purchases.map((p) => p.course_id))];
         console.log("My Courses: Unique Course IDs:", courseIds);
 
-        // ✅ Fetch all courses the user purchased from courses_mux table
+        // ✅ Fetch all courses the user purchased from both Mux and Vimeo tables
         const coursesData: Course[] = [];
 
         for (const courseId of courseIds) {
           try {
             console.log(`My Courses: Fetching course details for ${courseId}`);
-            const res = await fetch(`/api/admin/fetch-mux-details-course?id=${courseId}`);
+
+            // First, determine which source the course belongs to
+            const sourceRes = await fetch(`/api/admin/get-course-source?id=${courseId}`);
+            const sourceData = await sourceRes.json();
+
+            if (sourceData.error || !sourceData.exists) {
+              console.error(`Course ${courseId} not found in any source`);
+              continue;
+            }
+
+            // Fetch from the correct source
+            const endpoint = sourceData.source === "mux"
+              ? `/api/admin/fetch-mux-details-course?id=${courseId}`
+              : `/api/admin/fetch-vimeo-details-course?id=${courseId}`;
+
+            const res = await fetch(endpoint);
 
             if (!res.ok) {
               console.error(`Failed to fetch course ${courseId}: ${res.status}`);
