@@ -28,31 +28,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fetch course details from either courses_mux or courses_vimeo table
+    // Fetch course details from either courses_vimeo or courses_mux table
     let courseData = null;
     let courseError = null;
 
-    // Try fetching from courses_mux first
-    const { data: muxCourse, error: muxError } = await supabase
-      .from("courses_mux")
+    // Try fetching from courses_vimeo first
+    const { data: vimeoCourse, error: vimeoError } = await supabase
+      .from("courses_vimeo")
       .select("id, title, price")
       .eq("id", courseId)
       .maybeSingle();
 
-    if (muxCourse) {
-      courseData = muxCourse;
+    if (vimeoCourse) {
+      courseData = vimeoCourse;
     } else {
-      // If not found in Mux, try Vimeo
-      const { data: vimeoCourse, error: vimeoError } = await supabase
-        .from("courses_vimeo")
+      // If not found in Vimeo, try Mux
+      const { data: muxCourse, error: muxError } = await supabase
+        .from("courses_mux")
         .select("id, title, price")
         .eq("id", courseId)
         .maybeSingle();
 
-      if (vimeoCourse) {
-        courseData = vimeoCourse;
+      if (muxCourse) {
+        courseData = muxCourse;
       } else {
-        courseError = vimeoError || muxError;
+        courseError = muxError || vimeoError;
       }
     }
 
