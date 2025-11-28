@@ -128,6 +128,19 @@ export default function VimeoCourseUploader() {
 
     const videoId = videoUri.split('/').pop();
 
+    // Update privacy settings to hide branding
+    try {
+      onProgress?.("Configuring privacy settings...");
+      await fetch("/api/vimeo/update-privacy", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId }),
+      });
+    } catch (err) {
+      console.warn("Failed to update privacy settings:", err);
+      // Don't fail the upload, just log the warning
+    }
+
     return {
       videoId,
       videoUri,

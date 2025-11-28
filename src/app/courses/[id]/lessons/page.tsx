@@ -16,14 +16,17 @@ type Lesson = {
   description?: string;
   video_url?: string;
   mux_video_id?: string;
+  vimeo_player_url?: string;
+  vimeo_video_id?: string;
   document_url?: string;
-  lesson_order?: number; // Add lesson_order field
+  lesson_order?: number;
 };
 
 type Course = {
   id: string;
   title: string;
   lessons?: Lesson[];
+  source?: 'mux' | 'vimeo';
 };
 
 export default function CourseLessonsPage() {
@@ -99,7 +102,23 @@ export default function CourseLessonsPage() {
     const fetchCourse = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/admin/fetch-mux-details-course?id=${params.id}`);
+        // First, determine which source the course belongs to
+        const sourceRes = await fetch(`/api/admin/get-course-source?id=${params.id}`);
+        const sourceData = await sourceRes.json();
+
+        if (sourceData.error || !sourceData.exists) {
+          console.error("Course not found in any source");
+          setCourse(null);
+          setLoading(false);
+          return;
+        }
+
+        // Fetch from the correct source
+        const endpoint = sourceData.source === "mux"
+          ? `/api/admin/fetch-mux-details-course?id=${params.id}`
+          : `/api/admin/fetch-vimeo-details-course?id=${params.id}`;
+
+        const res = await fetch(endpoint);
         const data = await res.json();
 
         // Sort lessons by lesson_order if it exists
@@ -111,7 +130,8 @@ export default function CourseLessonsPage() {
           });
         }
 
-        setCourse(data.error ? null : data);
+        // Add source information to the course object
+        setCourse(data.error ? null : { ...data, source: sourceData.source });
       } catch (err) {
         console.error(err);
         setCourse(null);
@@ -261,7 +281,30 @@ export default function CourseLessonsPage() {
 
                       {/* Right: Video */}
                       <div className="w-full">
-                        {playbackId ? (
+                        {/* Render Vimeo Player */}
+                        {lesson.vimeo_player_url ? (
+                          <div
+                            className="w-full aspect-video rounded-lg overflow-hidden shadow-md relative"
+                            onContextMenu={(e) => e.preventDefault()}
+                            style={{ userSelect: 'none' }}
+                          >
+                            <iframe
+                              src={`${lesson.vimeo_player_url}?h=0&title=0&byline=0&portrait=0&sidedock=0&badge=0&autopause=0&player_id=0&app_id=0&color=de5252`}
+                              className="w-full h-full rounded-lg pointer-events-auto"
+                              frameBorder="0"
+                              allow="autoplay; fullscreen; picture-in-picture"
+                              allowFullScreen
+                              title={lesson.title}
+                              style={{ pointerEvents: 'auto' }}
+                            />
+                            {/* Invisible overlay to block right-click on video */}
+                            <div
+                              className="absolute inset-0 pointer-events-none"
+                              onContextMenu={(e) => e.preventDefault()}
+                            />
+                          </div>
+                        ) : playbackId ? (
+                          /* Render Mux Player */
                           <div className="w-full aspect-video rounded-lg overflow-hidden shadow-md">
                             <MuxPlayer
                               playbackId={playbackId}

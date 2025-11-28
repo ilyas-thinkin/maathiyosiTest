@@ -84,7 +84,34 @@ export async function createVimeoUpload(
       approach: 'tus',
       size: fileSize.toString()
     },
-    name: fileName
+    name: fileName,
+    privacy: {
+      view: 'unlisted',           // Only people with the link can view
+      embed: 'whitelist',          // Only allow embedding on specified domains
+      download: false,             // Prevent downloads
+      add: false,                  // Prevent adding to collections
+      comments: 'nobody'           // Disable comments
+    },
+    embed: {
+      title: {
+        name: 'hide',              // Hide title
+        owner: 'hide',             // Hide owner
+        portrait: 'hide'           // Hide owner portrait
+      },
+      buttons: {
+        like: false,               // Hide like button
+        watchlater: false,         // Hide watch later button
+        share: false,              // Hide share button
+        embed: false,              // Hide embed button
+        hd: false,                 // Hide HD button
+        fullscreen: true,          // Allow fullscreen
+        scaling: true              // Allow scaling
+      },
+      logos: {
+        vimeo: false               // Hide Vimeo logo
+      },
+      color: 'de5252'              // Brand color
+    }
   };
 
   // If folder ID is provided, add it to the request
