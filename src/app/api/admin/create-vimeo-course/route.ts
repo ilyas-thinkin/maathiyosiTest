@@ -1,6 +1,7 @@
 // src/app/api/admin/create-vimeo-course/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { generateSlug, ensureUniqueSlug } from '@/app/components/lib/slugUtils';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,6 +31,25 @@ export async function POST(req: NextRequest) {
 
     console.log('Creating Vimeo course:', title);
 
+    // Generate unique slug from title
+    const baseSlug = generateSlug(title);
+
+    // Fetch existing slugs from both Mux and Vimeo tables
+    const { data: existingMuxSlugs } = await supabase
+      .from('courses_mux')
+      .select('slug');
+
+    const { data: existingVimeoSlugs } = await supabase
+      .from('courses_vimeo')
+      .select('slug');
+
+    const allExistingSlugs = [
+      ...(existingMuxSlugs?.map(s => s.slug).filter(Boolean) || []),
+      ...(existingVimeoSlugs?.map(s => s.slug).filter(Boolean) || [])
+    ];
+
+    const uniqueSlug = ensureUniqueSlug(baseSlug, allExistingSlugs);
+
     // Insert course into courses_vimeo table
     const { data: course, error: courseError } = await supabase
       .from('courses_vimeo')
@@ -41,6 +61,7 @@ export async function POST(req: NextRequest) {
         thumbnail_url: thumbnail_url || '',
         vimeo_folder_id: vimeo_folder_id || null,
         vimeo_folder_uri: vimeo_folder_uri || null,
+        slug: uniqueSlug,
       })
       .select()
       .single();

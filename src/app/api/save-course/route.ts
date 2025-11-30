@@ -1,6 +1,7 @@
 // src/app/api/save-course/route.ts
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { generateSlug, ensureUniqueSlug } from '@/app/components/lib/slugUtils';
 
 const supabaseServer = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,6 +24,25 @@ export async function POST(req: Request) {
 
     if (!title) return NextResponse.json({ error: 'Missing title' }, { status: 400 });
 
+    // Generate unique slug from title
+    const baseSlug = generateSlug(title);
+
+    // Fetch existing slugs from both Mux and Vimeo tables
+    const { data: existingMuxSlugs } = await supabaseServer
+      .from('courses_mux')
+      .select('slug');
+
+    const { data: existingVimeoSlugs } = await supabaseServer
+      .from('courses_vimeo')
+      .select('slug');
+
+    const allExistingSlugs = [
+      ...(existingMuxSlugs?.map(s => s.slug).filter(Boolean) || []),
+      ...(existingVimeoSlugs?.map(s => s.slug).filter(Boolean) || [])
+    ];
+
+    const uniqueSlug = ensureUniqueSlug(baseSlug, allExistingSlugs);
+
     // Insert course
     const { data: courseData, error: courseError } = await supabaseServer
       .from('courses_mux')
@@ -33,6 +53,7 @@ export async function POST(req: Request) {
           category: category ?? null,
           price: price ?? null,
           thumbnail_url: thumbnail_url ?? null,
+          slug: uniqueSlug,
         },
       ])
       .select('id')

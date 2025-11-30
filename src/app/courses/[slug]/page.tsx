@@ -16,6 +16,7 @@ type Lesson = {
 type Course = {
   id: string;
   title: string;
+  slug: string;
   description?: string;
   category?: string;
   price?: number;
@@ -24,7 +25,7 @@ type Course = {
 };
 
 export default function CourseDetailsPage() {
-  const params = useParams<{ id: string }>();
+  const params = useParams<{ slug: string }>();
   const router = useRouter();
 
   const [course, setCourse] = useState<Course | null>(null);
@@ -35,28 +36,31 @@ export default function CourseDetailsPage() {
   const [checkingPurchase, setCheckingPurchase] = useState(true);
   const [navigating, setNavigating] = useState(false);
 
-  // Fetch course data
+  // Fetch course data by slug
   useEffect(() => {
-    if (!params?.id) return;
+    if (!params?.slug) return;
 
     const fetchCourse = async () => {
       setCourseLoading(true);
       try {
-        // First, determine which source the course belongs to
-        const sourceRes = await fetch(`/api/admin/get-course-source?id=${params.id}`);
-        const sourceData = await sourceRes.json();
+        // First, resolve slug to ID and source
+        const slugRes = await fetch(`/api/admin/get-course-by-slug?slug=${params.slug}`);
+        const slugData = await slugRes.json();
 
-        if (sourceData.error || !sourceData.exists) {
-          console.error("Course not found in any source");
+        if (slugData.error || !slugData.exists) {
+          console.error("Course not found");
           setCourse(null);
           setCourseLoading(false);
           return;
         }
 
+        const courseId = slugData.id;
+        const source = slugData.source;
+
         // Fetch from the correct source
-        const endpoint = sourceData.source === "mux"
-          ? `/api/admin/fetch-mux-details-course?id=${params.id}`
-          : `/api/admin/fetch-vimeo-details-course?id=${params.id}`;
+        const endpoint = source === "mux"
+          ? `/api/admin/fetch-mux-details-course?id=${courseId}`
+          : `/api/admin/fetch-vimeo-details-course?id=${courseId}`;
 
         const res = await fetch(endpoint);
         const data = await res.json();
@@ -79,7 +83,7 @@ export default function CourseDetailsPage() {
     };
 
     fetchCourse();
-  }, [params?.id]);
+  }, [params?.slug]);
 
   // Check user session
   useEffect(() => {
@@ -217,7 +221,7 @@ export default function CourseDetailsPage() {
           <motion.button
             onClick={() => {
               setNavigating(true);
-              router.push(`/courses/${course.id}/lessons`);
+              router.push(`/courses/${course.slug}/lessons`);
             }}
             className="w-full py-5 rounded-3xl text-white font-bold bg-green-600 hover:bg-green-700 shadow-xl text-2xl"
             whileHover={{ scale: 1.05 }}
@@ -244,7 +248,7 @@ export default function CourseDetailsPage() {
         <motion.button
           onClick={() => {
             setNavigating(true);
-            router.push(`/login?redirect=/courses/${course.id}`);
+            router.push(`/login?redirect=/courses/${course.slug}`);
           }}
           className="w-full py-5 rounded-3xl text-white font-bold bg-indigo-500 hover:bg-indigo-600 shadow-xl text-2xl"
           whileHover={{ scale: 1.05 }}

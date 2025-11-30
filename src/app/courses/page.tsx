@@ -7,6 +7,7 @@ import { ScatterBoxLoaderComponent } from "../components/ScatterBoxLoaderCompone
 
 type Course = {
   id: string;
+  slug: string;
   title: string;
   description: string;
   price: number;
@@ -86,7 +87,7 @@ export default function CoursesPage() {
                 className="group bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-500 flex flex-col border border-gray-100 hover:border-[#de5252]/30 hover:-translate-y-2 cursor-pointer"
                 onClick={() => {
                   setNavigating(true);
-                  router.push(`/courses/${course.id}`);
+                  router.push(`/courses/${course.slug}`);
                 }}
               >
                 {/* Square Thumbnail */}
@@ -127,7 +128,7 @@ export default function CoursesPage() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setNavigating(true);
-                      router.push(`/courses/${course.id}`);
+                      router.push(`/courses/${course.slug}`);
                     }}
                     className="w-full bg-gradient-to-r from-[#de5252] to-[#f66] hover:from-[#f66] hover:to-[#de5252] text-white font-semibold py-2 text-xs rounded-lg shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300"
                   >

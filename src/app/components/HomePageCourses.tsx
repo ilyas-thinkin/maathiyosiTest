@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 type UnifiedCourse = {
   id: string; // prefixed for MUX courses
+  slug: string;
   rawId: string | number;
   title: string;
   price: number;
@@ -36,6 +37,7 @@ export default function HomePageCourses() {
 
       const mappedCourses: UnifiedCourse[] = coursesArray.map((c: any) => ({
         id: `${c.id}`,
+        slug: c.slug || c.id,
         rawId: c.id,
         title: c.title,
         price: Number(c.price ?? 0),
@@ -86,7 +88,7 @@ export default function HomePageCourses() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.9 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              onClick={() => router.push(`/courses/${course.id}`)}
+              onClick={() => router.push(`/courses/${course.slug}`)}
               className="cursor-pointer bg-white rounded-3xl shadow-xl overflow-hidden hover:scale-105 hover:shadow-2xl transition-transform duration-300 relative flex flex-col"
             >
               <div className="relative h-48 overflow-hidden rounded-t-3xl">

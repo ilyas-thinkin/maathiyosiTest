@@ -30,9 +30,10 @@ type Course = {
 };
 
 export default function CourseLessonsPage() {
-  const params = useParams<{ id: string }>();
+  const params = useParams<{ slug: string }>();
   const router = useRouter();
   const [course, setCourse] = useState<Course | null>(null);
+  const [courseId, setCourseId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [hasAccess, setHasAccess] = useState(false);
@@ -49,21 +50,51 @@ export default function CourseLessonsPage() {
 
         if (!user) {
           // Not logged in, redirect to login
-          router.push(`/login?redirect=/courses/${params.id}/lessons`);
+          router.push(`/login?redirect=/courses/${params.slug}/lessons`);
         }
       } catch (err) {
         console.error("Auth check error:", err);
-        router.push(`/login?redirect=/courses/${params.id}/lessons`);
+        router.push(`/login?redirect=/courses/${params.slug}/lessons`);
       }
     };
 
     checkAuth();
-  }, [params.id, router]);
+  }, [params.slug, router]);
+
+  // Resolve slug to courseId
+  useEffect(() => {
+    const resolveSlugToCourseId = async () => {
+      if (!params?.slug) {
+        setCheckingAccess(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/admin/get-course-by-slug?slug=${params.slug}`);
+        const data = await res.json();
+
+        if (data.error || !data.id) {
+          console.error("Course not found for slug:", params.slug);
+          setCourseId(null);
+          setCheckingAccess(false);
+          return;
+        }
+
+        setCourseId(data.id);
+      } catch (err) {
+        console.error("Error resolving slug to courseId:", err);
+        setCourseId(null);
+        setCheckingAccess(false);
+      }
+    };
+
+    resolveSlugToCourseId();
+  }, [params?.slug]);
 
   // Check if user has purchased the course
   useEffect(() => {
     const checkPurchase = async () => {
-      if (!user || !params?.id) {
+      if (!user || !courseId) {
         setCheckingAccess(false);
         return;
       }
@@ -74,7 +105,7 @@ export default function CourseLessonsPage() {
           .from("purchase")
           .select("id, status")
           .eq("user_id", user.id)
-          .eq("course_id", params.id)
+          .eq("course_id", courseId)
           .eq("status", "success")
           .maybeSingle();
 
@@ -82,28 +113,28 @@ export default function CourseLessonsPage() {
           setHasAccess(true);
         } else {
           // User hasn't purchased, redirect to course details
-          router.push(`/courses/${params.id}`);
+          router.push(`/courses/${params.slug}`);
         }
       } catch (err) {
         console.error("Purchase check error:", err);
-        router.push(`/courses/${params.id}`);
+        router.push(`/courses/${params.slug}`);
       } finally {
         setCheckingAccess(false);
       }
     };
 
     checkPurchase();
-  }, [user, params.id, router]);
+  }, [user, courseId, router, params.slug]);
 
   // Fetch course + lessons (only if user has access)
   useEffect(() => {
-    if (!params?.id || !hasAccess) return;
+    if (!courseId || !hasAccess) return;
 
     const fetchCourse = async () => {
       setLoading(true);
       try {
         // First, determine which source the course belongs to
-        const sourceRes = await fetch(`/api/admin/get-course-source?id=${params.id}`);
+        const sourceRes = await fetch(`/api/admin/get-course-source?id=${courseId}`);
         const sourceData = await sourceRes.json();
 
         if (sourceData.error || !sourceData.exists) {
@@ -115,8 +146,8 @@ export default function CourseLessonsPage() {
 
         // Fetch from the correct source
         const endpoint = sourceData.source === "mux"
-          ? `/api/admin/fetch-mux-details-course?id=${params.id}`
-          : `/api/admin/fetch-vimeo-details-course?id=${params.id}`;
+          ? `/api/admin/fetch-mux-details-course?id=${courseId}`
+          : `/api/admin/fetch-vimeo-details-course?id=${courseId}`;
 
         const res = await fetch(endpoint);
         const data = await res.json();
@@ -141,7 +172,7 @@ export default function CourseLessonsPage() {
     };
 
     fetchCourse();
-  }, [params?.id, hasAccess]);
+  }, [courseId, hasAccess]);
 
   // Extract Mux playback ID from URL
   const extractMuxPlaybackId = (url: string | undefined): string | null => {
@@ -162,7 +193,7 @@ export default function CourseLessonsPage() {
           You need to purchase this course to access the lessons.
         </p>
         <button
-          onClick={() => router.push(`/courses/${params.id}`)}
+          onClick={() => router.push(`/courses/${params.slug}`)}
           className="px-6 py-3 bg-[#de5252] text-white rounded-lg hover:bg-[#f66]"
         >
           View Course Details

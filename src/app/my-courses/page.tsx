@@ -8,6 +8,7 @@ import { ScatterBoxLoaderComponent } from "../components/ScatterBoxLoaderCompone
 
 type Course = {
   id: string;
+  slug: string;
   title: string;
   thumbnail_url: string;
   description: string;
@@ -113,6 +114,7 @@ export default function MyCoursesPage() {
             if (!data.error && data.id) {
               coursesData.push({
                 id: data.id,
+                slug: data.slug || data.id, // fallback to ID if no slug
                 title: data.title,
                 thumbnail_url: data.thumbnail_url || "/default-thumbnail.jpg",
                 description: data.description || "No description available"
@@ -202,7 +204,7 @@ export default function MyCoursesPage() {
             key={course.id}
             onClick={() => {
               setNavigating(true);
-              router.push(`/courses/${course.id}/lessons`);
+              router.push(`/courses/${course.slug}/lessons`);
             }}
             className="group cursor-pointer"
           >

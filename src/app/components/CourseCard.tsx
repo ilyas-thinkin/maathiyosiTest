@@ -3,12 +3,13 @@ import { motion } from "framer-motion";
 
 interface CourseCardProps {
   id: string;
+  slug: string;
   title: string;
   description: string;
   image: string;
 }
 
-export default function CourseCard({ id, title, description, image }: CourseCardProps) {
+export default function CourseCard({ id, slug, title, description, image }: CourseCardProps) {
   return (
     <motion.div
       whileHover={{ scale: 1.03 }}
@@ -32,7 +33,7 @@ export default function CourseCard({ id, title, description, image }: CourseCard
         </p>
 
         {/* Button */}
-        <Link href={`/courses/${id}`}>
+        <Link href={`/courses/${slug}`}>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
