@@ -156,8 +156,8 @@ export default function AdminPage() {
                   {/* Gradient overlay on hover */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                  {/* Action Buttons Overlay */}
-                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  {/* Action Buttons Overlay - Always Visible at Top */}
+                  <div className="absolute top-2 right-2 flex gap-2">
                     <button
                       onClick={() => router.push(`/admin-page/edit-${course.source}/${course.id}`)}
                       className="bg-white/95 backdrop-blur-sm p-2 rounded-full text-indigo-600 shadow-xl hover:bg-white hover:scale-110 transition-all"
@@ -177,8 +177,8 @@ export default function AdminPage() {
                     </button>
                   </div>
 
-                  {/* Category badge */}
-                  <div className="absolute top-2 left-2 bg-gradient-to-r from-indigo-600 to-indigo-500 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-lg">
+                  {/* Category badge - Positioned at Bottom */}
+                  <div className="absolute bottom-2 left-2 bg-gradient-to-r from-indigo-600 to-indigo-500 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-lg">
                     <p className="text-white text-[10px] font-semibold uppercase tracking-wide">{course.category}</p>
                   </div>
                 </div>

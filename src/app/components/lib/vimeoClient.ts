@@ -86,8 +86,8 @@ export async function createVimeoUpload(
     },
     name: fileName,
     privacy: {
-      view: 'unlisted',           // Only people with the link can view
-      embed: 'whitelist',          // Only allow embedding on specified domains
+      view: 'unlisted',           // Only people with the link can view - hidden from Vimeo search
+      embed: 'public',             // Allow embedding (but video is still unlisted)
       download: false,             // Prevent downloads
       add: false,                  // Prevent adding to collections
       comments: 'nobody'           // Disable comments
