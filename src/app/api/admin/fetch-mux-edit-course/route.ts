@@ -35,7 +35,7 @@ export async function GET(req: Request) {
       .from("course_lessons_mux")
       .select("*")
       .eq("course_id", id)
-      .order("id", { ascending: true }); // optional ordering
+      .order("lesson_order", { ascending: true }); // order by lesson_order to maintain sequence
 
     if (lessonsError) {
       return NextResponse.json({ error: lessonsError.message }, { status: 500 });

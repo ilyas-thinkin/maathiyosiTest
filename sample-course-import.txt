@@ -1,0 +1,22 @@
+COURSE_TITLE: Introduction to IoT
+COURSE_DESCRIPTION: Learn the fundamentals of Internet of Things including sensors, actuators, and connectivity. This comprehensive course covers everything from basic concepts to advanced implementations.
+CATEGORY: Technology
+PRICE: 999
+
+LESSON_1_TITLE: What is IoT?
+LESSON_1_DESCRIPTION: Introduction to Internet of Things concepts and real-world applications. Learn about connected devices and their impact on daily life.
+
+LESSON_2_TITLE: IoT Hardware Components
+LESSON_2_DESCRIPTION: Understanding sensors, microcontrollers, and communication modules. Hands-on exploration of Arduino and Raspberry Pi.
+
+LESSON_3_TITLE: Connectivity Protocols
+LESSON_3_DESCRIPTION: Exploring MQTT, HTTP, and other IoT communication protocols. Deep dive into wireless technologies like WiFi, Bluetooth, and LoRa.
+
+LESSON_4_TITLE: Cloud Platforms for IoT
+LESSON_4_DESCRIPTION: Introduction to AWS IoT, Google Cloud IoT, and Azure IoT Hub. Learn how to connect devices to the cloud.
+
+LESSON_5_TITLE: Data Analytics and Visualization
+LESSON_5_DESCRIPTION: Processing and analyzing sensor data. Creating dashboards and real-time monitoring systems.
+
+LESSON_6_TITLE: IoT Security Best Practices
+LESSON_6_DESCRIPTION: Securing IoT devices and networks. Understanding common vulnerabilities and how to prevent them.

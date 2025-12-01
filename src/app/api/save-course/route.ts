@@ -78,7 +78,7 @@ export async function POST(req: Request) {
         duration: l.duration ?? null,
         mux_video_id: l.mux_video_id ?? null,
         document_url: l.document_url ?? null,
-        lesson_order: index + 1, // <-- save order based on array index
+        lesson_order: l.lesson_order !== undefined ? l.lesson_order : index, // use provided order or fallback to index
       }));
 
       const { error: lessonsError } = await supabaseServer
