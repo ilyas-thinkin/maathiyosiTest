@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Plus, X, GripVertical, FileVideo, FileText, Image as ImageIcon, CheckCircle, Loader2 } from "lucide-react";
+import { Plus, X, GripVertical, FileVideo, FileText, Image as ImageIcon, CheckCircle, Loader2, Upload } from "lucide-react";
+import { parseCourseImportFile, readTextFile, validateCourseData } from "../lib/courseImportParser";
 
 type UploadProgress = {
   stage: string;
@@ -27,6 +28,48 @@ export default function CourseUploader() {
 
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+
+  /** Import course data from text file */
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const content = await readTextFile(file);
+      const parsedData = parseCourseImportFile(content);
+      const validation = validateCourseData(parsedData);
+
+      if (!validation.valid) {
+        alert(`Import failed:\n${validation.errors.join('\n')}`);
+        return;
+      }
+
+      // Fill in course fields
+      setCourseTitle(parsedData.courseTitle);
+      setCourseDesc(parsedData.courseDescription);
+      setCategory(parsedData.category);
+      setPrice(parsedData.price);
+
+      // Create lesson entries
+      const newLessons = parsedData.lessons.map(lesson => ({
+        title: lesson.title,
+        description: lesson.description,
+        videoFile: null,
+        docFile: null,
+        playbackUrl: ""
+      }));
+
+      setLessons(newLessons);
+
+      alert(`Successfully imported course data!\n${parsedData.lessons.length} lessons added.\n\nNext: Upload thumbnail, videos, and documents for each lesson.`);
+    } catch (err: any) {
+      alert(`Failed to import file: ${err.message}`);
+      console.error(err);
+    }
+
+    // Reset file input
+    e.target.value = '';
+  };
 
   /** Add new lesson */
   const addLesson = () => {
@@ -299,7 +342,35 @@ export default function CourseUploader() {
 
   return (
     <div className="max-w-5xl mx-auto p-8 bg-gray-50 rounded-lg shadow-lg">
-      <h1 className="text-3xl font-bold text-blue-700 mb-6">Add New Course</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-blue-700">Add New Course</h1>
+
+        {/* Import Course Data Button */}
+        <label className="cursor-pointer flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md">
+          <Upload className="w-5 h-5 mr-2" />
+          Import Course Data
+          <input
+            type="file"
+            accept=".txt"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+        </label>
+      </div>
+
+      {/* Info Box */}
+      <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+        <p className="text-sm text-blue-800">
+          <strong>Tip:</strong> You can import course details from a .txt file.
+          <a
+            href="/COURSE_IMPORT_FORMAT.md"
+            target="_blank"
+            className="underline ml-1 hover:text-blue-600"
+          >
+            View format guide
+          </a>
+        </p>
+      </div>
 
       {/* Course Info */}
       <div className="space-y-4 mb-6">
