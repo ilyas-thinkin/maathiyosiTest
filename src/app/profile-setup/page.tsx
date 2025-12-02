@@ -47,6 +47,14 @@ export default function ProfileSetup() {
   return (
     <div className="flex h-screen items-center justify-center bg-gray-100">
       <div className="bg-white shadow-md rounded-xl p-6 w-96">
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <img
+            src="/images/Maathiyosi_Logo_Rect.png"
+            alt="Maathiyosi"
+            className="h-12 object-contain"
+          />
+        </div>
         <h1 className="text-xl font-semibold mb-4">Complete Your Profile</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
             <input

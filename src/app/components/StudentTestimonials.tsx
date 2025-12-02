@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Star } from "lucide-react";
 
@@ -10,98 +10,6 @@ type Testimonial = {
   feedback: string;
   image: string;
 };
-
-// First row testimonials
-const testimonialsRow1: Testimonial[] = [
-  {
-    name: "Arun Kumar",
-    role: "Class 11 Student",
-    feedback:
-      "Maathiyosi has completely changed how I learn physics. The video explanations are so clear, and I can learn at my own pace!",
-    image: "https://randomuser.me/api/portraits/men/32.jpg",
-  },
-  {
-    name: "Priya Sharma",
-    role: "Class 12 Student",
-    feedback:
-      "The best decision I made for my board exam preparation. The structured courses and practice problems helped me score 95%!",
-    image: "https://randomuser.me/api/portraits/women/44.jpg",
-  },
-  {
-    name: "Karthik Reddy",
-    role: "Engineering Student",
-    feedback:
-      "As an engineering student, Maathiyosi's advanced math courses have been invaluable. The concepts are explained brilliantly!",
-    image: "https://randomuser.me/api/portraits/men/76.jpg",
-  },
-  {
-    name: "Divya Nair",
-    role: "Class 10 Student",
-    feedback:
-      "I was struggling with algebra, but Maathiyosi made it so easy to understand. Now it's my favorite subject!",
-    image: "https://randomuser.me/api/portraits/women/68.jpg",
-  },
-  {
-    name: "Rahul Mehta",
-    role: "NEET Aspirant",
-    feedback:
-      "The biology and chemistry courses are exceptional. The detailed explanations helped me crack NEET with a great score!",
-    image: "https://randomuser.me/api/portraits/men/45.jpg",
-  },
-  {
-    name: "Sneha Iyer",
-    role: "Class 9 Student",
-    feedback:
-      "Learning has never been this fun! The interactive lessons and quizzes keep me engaged and help me remember better.",
-    image: "https://randomuser.me/api/portraits/women/12.jpg",
-  },
-];
-
-// Second row testimonials
-const testimonialsRow2: Testimonial[] = [
-  {
-    name: "Vijay Krishnan",
-    role: "JEE Aspirant",
-    feedback:
-      "Maathiyosi's JEE preparation courses are top-notch. The problem-solving techniques and shortcuts are game-changers!",
-    image: "https://randomuser.me/api/portraits/men/90.jpg",
-  },
-  {
-    name: "Ananya Das",
-    role: "Class 12 Student",
-    feedback:
-      "The chemistry courses here are amazing! Complex reactions are broken down so well that I actually enjoy studying now.",
-    image: "https://randomuser.me/api/portraits/women/25.jpg",
-  },
-  {
-    name: "Rohan Singh",
-    role: "Class 11 Student",
-    feedback:
-      "Best online learning platform I've used. The teachers are excellent, and the study materials are comprehensive.",
-    image: "https://randomuser.me/api/portraits/men/54.jpg",
-  },
-  {
-    name: "Meera Patel",
-    role: "Class 10 Student",
-    feedback:
-      "My grades improved significantly after joining Maathiyosi. The practice tests really helped me prepare for exams!",
-    image: "https://randomuser.me/api/portraits/women/33.jpg",
-  },
-  {
-    name: "Arjun Desai",
-    role: "Engineering Student",
-    feedback:
-      "The advanced calculus and linear algebra courses are perfectly designed for college-level learning. Highly recommend!",
-    image: "https://randomuser.me/api/portraits/men/67.jpg",
-  },
-  {
-    name: "Lakshmi Menon",
-    role: "Class 12 Student",
-    feedback:
-      "Thanks to Maathiyosi, I'm confident about my board exams. The revision modules and mock tests are extremely helpful!",
-    image: "https://randomuser.me/api/portraits/women/51.jpg",
-  },
-];
 
 function Row({
   items,
@@ -226,6 +134,58 @@ export default function TestimonialsSlider() {
   const [pausedBottom, setPausedBottom] = useState(false);
   const [hoveredTop, setHoveredTop] = useState<number | null>(null);
   const [hoveredBottom, setHoveredBottom] = useState<number | null>(null);
+  const [testimonialsRow1, setTestimonialsRow1] = useState<Testimonial[]>([]);
+  const [testimonialsRow2, setTestimonialsRow2] = useState<Testimonial[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTestimonials = async () => {
+      try {
+        const res = await fetch("/api/admin/testimonials?active=true");
+        const result = await res.json();
+
+        if (result.success && Array.isArray(result.data)) {
+          // Filter and map testimonials by row
+          const row1 = result.data
+            .filter((t: any) => t.row_number === 1)
+            .sort((a: any, b: any) => a.display_order - b.display_order)
+            .map((t: any) => ({
+              name: t.name,
+              role: t.role,
+              feedback: t.feedback,
+              image: t.image_url || "https://via.placeholder.com/100",
+            }));
+
+          const row2 = result.data
+            .filter((t: any) => t.row_number === 2)
+            .sort((a: any, b: any) => a.display_order - b.display_order)
+            .map((t: any) => ({
+              name: t.name,
+              role: t.role,
+              feedback: t.feedback,
+              image: t.image_url || "https://via.placeholder.com/100",
+            }));
+
+          setTestimonialsRow1(row1);
+          setTestimonialsRow2(row2);
+        }
+      } catch (err) {
+        console.error("Failed to fetch testimonials:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTestimonials();
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="bg-white py-12 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#de5252] border-t-transparent"></div>
+      </section>
+    );
+  }
 
   return (
     <section className="bg-white py-12 overflow-hidden space-y-6">

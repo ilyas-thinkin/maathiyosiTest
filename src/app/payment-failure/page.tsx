@@ -48,6 +48,20 @@ function PaymentFailedContent() {
         animate={{ y: 0 }}
         transition={{ delay: 0.2, duration: 0.5 }}
       >
+        {/* Logo */}
+        <motion.div
+          className="mb-6"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <img
+            src="/images/Maathiyosi_Logo_Rect.png"
+            alt="Maathiyosi"
+            className="h-12 mx-auto object-contain"
+          />
+        </motion.div>
+
         <motion.div
           className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6"
           initial={{ scale: 0 }}

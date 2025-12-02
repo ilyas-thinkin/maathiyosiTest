@@ -52,6 +52,14 @@ export default function AdminLogin() {
 
   return (
     <div className="max-w-md mx-auto p-6 border rounded shadow-md mt-20">
+      {/* Logo */}
+      <div className="flex justify-center mb-6">
+        <img
+          src="/images/Maathiyosi_Logo_Rect.png"
+          alt="Maathiyosi"
+          className="h-12 object-contain"
+        />
+      </div>
       <h2 className="text-2xl font-bold mb-6 text-center">Admin Login</h2>
 
       <input

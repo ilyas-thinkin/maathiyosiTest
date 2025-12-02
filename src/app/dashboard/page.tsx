@@ -98,6 +98,20 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
+        {/* Logo */}
+        <motion.div
+          className="mb-4"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <img
+            src="/images/Maathiyosi_Logo_Rect.png"
+            alt="Maathiyosi"
+            className="h-10 mx-auto object-contain"
+          />
+        </motion.div>
+
         {/* Profile Avatar */}
         <motion.img
           src={user.avatar || "/default-avatar.png"}

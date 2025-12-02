@@ -82,9 +82,9 @@ export default function LoginContent() {
           transition={{ duration: 0.4 }}
         >
           <img
-            src="/logo.png"
+            src="/images/Maathiyosi_Logo_Rect.png"
             alt="Maathiyosi Logo"
-            className="w-20 h-20 rounded-full shadow-lg border-2 border-indigo-400"
+            className="h-16 object-contain"
           />
           <h1 className="text-2xl font-bold text-gray-800">
             Welcome to Maathiyosi

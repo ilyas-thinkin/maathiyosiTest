@@ -4,15 +4,16 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ScatterBoxLoaderComponent } from "../components/ScatterBoxLoaderComponent";
+import { FiArrowRight } from "react-icons/fi";
 
 type Course = {
   id: string;
   slug: string;
   title: string;
-  description: string;
+  description?: string | null;
   price: number;
-  category: string;
-  thumbnail_url: string;
+  category?: string | null;
+  thumbnail_url?: string | null;
   created_at: string;
   source: 'mux' | 'vimeo';
 };
@@ -75,65 +76,51 @@ export default function CoursesPage() {
       {courses.length === 0 ? (
         <p className="text-center text-gray-400">No courses available.</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
           <AnimatePresence>
             {courses.map((course, index) => (
               <motion.div
-                key={course.id}
+                key={`${course.source}-${course.id}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.3, delay: index * 0.03 }}
-                className="group bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-500 flex flex-col border border-gray-100 hover:border-[#de5252]/30 hover:-translate-y-2 cursor-pointer"
+                className="group cursor-pointer bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg overflow-hidden transition-all duration-300 relative flex flex-col hover:-translate-y-1"
                 onClick={() => {
                   setNavigating(true);
                   router.push(`/courses/${course.slug}`);
                 }}
               >
-                {/* Square Thumbnail */}
-                <div className="relative aspect-square overflow-hidden rounded-t-xl">
+                <div className="relative h-48 overflow-hidden bg-gradient-to-br from-red-50 to-pink-50">
                   <img
                     src={course.thumbnail_url || "/placeholder.png"}
                     alt={course.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  {/* Gradient overlay on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                  {/* Category badge */}
-                  <div className="absolute top-2 left-2 bg-gradient-to-r from-[#de5252] to-[#f66] backdrop-blur-sm px-2.5 py-1 rounded-full shadow-lg">
-                    <p className="text-white text-[10px] font-semibold uppercase tracking-wide">{course.category}</p>
-                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent" />
                 </div>
 
                 {/* Content */}
-                <div className="p-3.5 flex flex-col gap-2">
+                <div className="p-6 flex flex-col flex-grow gap-3 relative">
                   {/* Title */}
-                  <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 min-h-[38px] group-hover:text-[#de5252] transition-colors duration-300">
+                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 leading-tight">
                     {course.title}
                   </h3>
 
                   {/* Description */}
-                  <p className="text-[11px] text-gray-600 line-clamp-2 leading-relaxed min-h-[32px]">
-                    {course.description}
+                  <p className="text-sm text-gray-600 flex-grow leading-relaxed line-clamp-2">
+                    {course.description?.trim() || "Discover what you will learn inside this course."}
                   </p>
 
                   {/* Price */}
-                  <p className="text-base font-extrabold text-[#de5252] mt-1 group-hover:scale-105 transition-transform duration-300">
+                  <p className="text-xl font-bold bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent">
                     ₹{course.price?.toLocaleString() || "0"}
                   </p>
 
-                  {/* View Course Button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setNavigating(true);
-                      router.push(`/courses/${course.slug}`);
-                    }}
-                    className="w-full bg-gradient-to-r from-[#de5252] to-[#f66] hover:from-[#f66] hover:to-[#de5252] text-white font-semibold py-2 text-xs rounded-lg shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-                  >
-                    View Course
-                  </button>
+                  {/* Arrow Circle - Bottom Right */}
+                  <div className="absolute bottom-5 right-5 w-10 h-10 rounded-full bg-gradient-to-r from-red-500 to-pink-500 flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
+                    <FiArrowRight className="text-white text-lg" />
+                  </div>
                 </div>
               </motion.div>
             ))}

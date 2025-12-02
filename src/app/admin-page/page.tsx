@@ -226,6 +226,20 @@ export default function AdminPage() {
       >
         <FiEdit className="text-xl" /> Edit Hero
       </button>
+
+      <button
+        onClick={() => router.push("/admin-page/edit-homepage-courses")}
+        className="fixed bottom-52 right-6 flex items-center gap-2 px-5 py-3 bg-emerald-600 text-white font-bold rounded-full shadow-lg hover:bg-emerald-700 transition-all z-50"
+      >
+        <FiEdit className="text-xl" /> Edit Homepage Courses
+      </button>
+
+      <button
+        onClick={() => router.push("/admin-page/admin-testimonials")}
+        className="fixed bottom-[17rem] right-6 flex items-center gap-2 px-5 py-3 bg-amber-600 text-white font-bold rounded-full shadow-lg hover:bg-amber-700 transition-all z-50"
+      >
+        <FiEdit className="text-xl" /> Testimonials
+      </button>
     </div>
   );
 }
