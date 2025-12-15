@@ -32,7 +32,7 @@
     "git": "^0.1.5",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.525.0",
-    "next": "15.4.8",
+    "next": "15.4.10",
     "next-auth": "^4.24.11",
     "qs": "^6.14.0",
     "querystring": "^0.2.1",
